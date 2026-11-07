@@ -1,20 +1,34 @@
+<<<<<<< HEAD
 """Provider classification and upstream-error formatting (REAL src.llm_core).
+=======
+"""Provider classification from a base URL (REAL src.llm_core).
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 ROADMAP "Backend → more tests around ... provider setup" and "Provider
 setup/probing audit for Anthropic, Gemini, Groq, xAI, OpenRouter, OpenAI, and
 DeepSeek". `test_provider_endpoints.py` already pins URL/header *building*; this
 module pins the two pieces of provider setup that decide WHICH provider an
+<<<<<<< HEAD
 endpoint is and how its failures are reported to the user:
+=======
+endpoint is:
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
   * `_detect_provider`  — host-based provider identification (drives payload
     shape, auth headers, and the /v1 collapse). The look-alike-host and
     domain-in-path cases guard the hostname (not substring) matching.
   * `_provider_label`   — the human name shown in degraded-state messages.
+<<<<<<< HEAD
   * `_format_upstream_error` — turns a raw upstream HTTP status + body into the
     one-line, provider-aware message the UI shows ("Provider probes" degraded
     reporting in the roadmap).
   * `_uses_max_completion_tokens` — the gpt-5 / o-series quirk that the probe
     and chat payload builders branch on.
+=======
+
+Upstream-error formatting lives in `test_provider_classification_errors.py` and
+the token-param quirk in `test_provider_classification_token_params.py`.
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 conftest.py stubs the heavy deps (sqlalchemy, src.database), so importing the
 real module is side-effect free.
@@ -24,8 +38,11 @@ import pytest
 from src.llm_core import (
     _detect_provider,
     _provider_label,
+<<<<<<< HEAD
     _format_upstream_error,
     _uses_max_completion_tokens,
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 )
 
 
@@ -40,6 +57,10 @@ class TestDetectProvider:
         ("https://anthropic.com/v1", "anthropic"),
         ("https://openrouter.ai/api/v1", "openrouter"),
         ("https://api.groq.com/openai/v1", "groq"),
+<<<<<<< HEAD
+=======
+        ("https://integrate.api.nvidia.com/v1", "nvidia"),
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         ("http://localhost:11434/api", "ollama"),
         ("https://ollama.com", "ollama"),
         # xAI, DeepSeek and Gemini's OpenAI-compatible surface are NOT
@@ -84,6 +105,10 @@ class TestProviderLabel:
         ("https://api.openai.com/v1", "OpenAI"),
         ("https://openrouter.ai/api/v1", "OpenRouter"),
         ("https://api.groq.com/openai/v1", "Groq"),
+<<<<<<< HEAD
+=======
+        ("https://integrate.api.nvidia.com/v1", "NVIDIA"),
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         ("https://api.mistral.ai/v1", "Mistral"),
         ("https://api.deepseek.com", "DeepSeek"),
         ("https://generativelanguage.googleapis.com/v1beta/openai", "Google"),
@@ -95,10 +120,26 @@ class TestProviderLabel:
     def test_known_labels(self, url, expected):
         assert _provider_label(url) == expected
 
+<<<<<<< HEAD
     def test_local_non_ollama_endpoint(self):
         # A loopback host that isn't on the native Ollama /api path is just a
         # generic local endpoint (e.g. an OpenAI-compatible local server).
         assert _provider_label("http://localhost:8080/v1") == "local endpoint"
+=======
+    @pytest.mark.parametrize("url", [
+        "http://localhost:8080/v1",
+        "http://127.0.0.1:8080/v1",
+        "http://localhost:8000/v1",
+        "http://localhost:1234/v1",
+        "http://localhost:9999/v1",
+    ])
+    def test_local_non_ollama_endpoint(self, url):
+        # The serving tool is NOT inferred from the port: vLLM, SGLang, llama.cpp
+        # and plain OpenAI-compatible servers all share 8000/8080, so a port-only
+        # label would mislabel real setups. The tool is identified by /props
+        # fingerprinting during discovery; this helper stays neutral.
+        assert _provider_label(url) == "local endpoint"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     def test_unknown_host_returns_host(self):
         assert _provider_label("https://api.unknown-llm.example/v1") == "api.unknown-llm.example"
@@ -106,6 +147,7 @@ class TestProviderLabel:
     @pytest.mark.parametrize("url", ["", None])
     def test_empty_returns_generic(self, url):
         assert _provider_label(url) == "provider"
+<<<<<<< HEAD
 
 
 # ── _format_upstream_error ──
@@ -184,3 +226,5 @@ class TestUsesMaxCompletionTokens:
     ])
     def test_uses_plain_max_tokens(self, model):
         assert _uses_max_completion_tokens(model) is False
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

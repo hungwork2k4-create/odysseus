@@ -11,6 +11,19 @@ from fastapi import HTTPException
 from routes.research_routes import setup_research_routes
 
 
+<<<<<<< HEAD
+=======
+@pytest.fixture(autouse=True)
+def _redirect_research_dir(tmp_path, monkeypatch):
+    # Deep-research paths are resolved from an import-time constant now, so chdir
+    # no longer redirects them. Point the constant the routes read at the temp dir.
+    monkeypatch.setattr(
+        "routes.research_routes.DEEP_RESEARCH_DIR",
+        str(tmp_path / "data" / "deep_research"),
+    )
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 def _request(user: str):
     return SimpleNamespace(state=SimpleNamespace(current_user=user))
 

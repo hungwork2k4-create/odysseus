@@ -1,5 +1,9 @@
 """Tests for _owned_document_query owner scoping (src/tool_implementations.py)."""
+<<<<<<< HEAD
 from src.tool_implementations import _owned_document_query
+=======
+from src.agent_tools.document_tools import _owned_document_query
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 class _FakeQuery:

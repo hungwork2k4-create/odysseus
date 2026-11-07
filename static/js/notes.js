@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * Notes Module — Google Keep-style notes and todos.
  * Renders as a sidebar panel (like document editor), not a modal.
@@ -5046,9 +5047,10 @@ async function _initReminders() {
 const notesModule = { openPanel, closePanel, togglePanel, isPanelOpen, openNotes: openPanel, closeNotes: closePanel, isNotesOpen: isPanelOpen, refreshDueBadge };
 export default notesModule;
 export { openPanel as openNotes, closePanel as closeNotes, isPanelOpen as isNotesOpen };
+=======
+/** Compatibility URL. All consumers share the canonical Notes feature instance. */
+import notesModule, { startNotesBackground } from './features/notes/index.js';
+export { default, openPanel, closePanel, togglePanel, isPanelOpen, openNote, newNote, refreshDueBadge, dismissFiredReminderDot, openNotes, closeNotes, isNotesOpen } from './features/notes/index.js';
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 window.notesModule = notesModule;
-
-// Start reminder loop on module load (after a short delay so app loads first)
-if (typeof window !== 'undefined') {
-  setTimeout(_initReminders, 3000);
-}
+startNotesBackground();

@@ -29,8 +29,13 @@ def _read_memories(data_dir):
 @pytest.mark.asyncio
 async def test_consolidate_memory_empty_owner_treats_each_owner_separately(monkeypatch, tmp_path):
     from src import constants
+<<<<<<< HEAD
     from src import endpoint_resolver
     from src import llm_core
+=======
+    from src import llm_core
+    from src import task_endpoint
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     action_consolidate_memory = _import_consolidate_action()
 
     long_alice_text = "Alice private project context. " + ("A" * 2200)
@@ -44,11 +49,23 @@ async def test_consolidate_memory_empty_owner_treats_each_owner_separately(monke
         ],
     )
     monkeypatch.setattr(constants, "DATA_DIR", str(data_dir))
+<<<<<<< HEAD
     monkeypatch.setattr(endpoint_resolver, "resolve_endpoint", lambda *args, **kwargs: ("http://llm", "model", {}))
 
     prompts = []
 
     async def fake_llm_call_async(**kwargs):
+=======
+    monkeypatch.setattr(
+        task_endpoint,
+        "resolve_task_candidates",
+        lambda *args, **kwargs: [("http://llm", "model", {})],
+    )
+
+    prompts = []
+
+    async def fake_llm_call_async(_candidates, **kwargs):
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         prompt = kwargs["messages"][0]["content"]
         prompts.append(prompt)
         if "alice-long" in prompt:
@@ -71,12 +88,20 @@ async def test_consolidate_memory_empty_owner_treats_each_owner_separately(monke
             }
         )
 
+<<<<<<< HEAD
     monkeypatch.setattr(llm_core, "llm_call_async", fake_llm_call_async)
+=======
+    monkeypatch.setattr(llm_core, "llm_call_async_with_fallback", fake_llm_call_async)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     message, ok = await action_consolidate_memory("")
 
     assert ok is True
+<<<<<<< HEAD
     assert "removed 1" in message
+=======
+    assert "removed 1" in message.lower()
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     assert len(prompts) == 2
     saved = {m["id"]: m for m in _read_memories(data_dir)}
     assert set(saved) == {"alice-long", "alice-short", "bob-keep"}
@@ -110,3 +135,49 @@ async def test_consolidate_memory_specific_owner_does_not_absorb_ownerless_rows(
     assert set(saved) == {"alice-1", "legacy", "bob-1"}
     assert "owner" not in saved["legacy"]
     assert saved["bob-1"]["owner"] == "bob"
+<<<<<<< HEAD
+=======
+
+
+@pytest.mark.asyncio
+async def test_consolidate_memory_removes_near_duplicates_before_ai(monkeypatch, tmp_path):
+    from src import constants
+    from src import llm_core
+    from src import task_endpoint
+    action_consolidate_memory = _import_consolidate_action()
+
+    data_dir = _write_memories(
+        tmp_path,
+        [
+            {"id": "a", "owner": "alice", "text": "User prefers bullet points when explaining.", "category": "preference"},
+            {"id": "b", "owner": "alice", "text": "User prefers bulletpoints when explaining", "category": "preference", "pinned": True},
+            {"id": "c", "owner": "alice", "text": "User likes local models.", "category": "preference"},
+        ],
+    )
+    monkeypatch.setattr(constants, "DATA_DIR", str(data_dir))
+    monkeypatch.setattr(
+        task_endpoint,
+        "resolve_task_candidates",
+        lambda *args, **kwargs: [("http://llm", "model", {})],
+    )
+
+    async def fake_llm_call_async(_candidates, **kwargs):
+        items = json.loads(kwargs["messages"][0]["content"].split("MEMORIES:\n", 1)[1])
+        return json.dumps({
+            "keep": [
+                {"id": item["id"], "text": item["text"], "category": item["category"]}
+                for item in items
+            ],
+            "drop": [],
+        })
+
+    monkeypatch.setattr(llm_core, "llm_call_async_with_fallback", fake_llm_call_async)
+
+    message, ok = await action_consolidate_memory("alice")
+
+    assert ok is True
+    assert "removed 1" in message.lower()
+    saved = {m["id"]: m for m in _read_memories(data_dir)}
+    assert set(saved) == {"b", "c"}
+    assert saved["b"]["pinned"] is True
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

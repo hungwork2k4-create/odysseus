@@ -1,4 +1,5 @@
 import pytest
+<<<<<<< HEAD
 import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -17,6 +18,14 @@ def _drop_fake_core_database():
 
 
 _drop_fake_core_database()
+=======
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers.import_state import clear_fake_database_modules
+
+clear_fake_database_modules()
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 from core.database import Base, Session, ChatMessage
 from datetime import datetime

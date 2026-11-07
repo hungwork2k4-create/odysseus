@@ -2,10 +2,25 @@
 
 <!-- One paragraph: what changed and why. "Fixed bug" and "Added feature" are not summaries. -->
 
+<<<<<<< HEAD
 ## Linked Issue
 
 <!-- Every PR should be linked to an issue.
      Use one of:  Fixes #NNN  |  Part of #NNN  |  Closes #NNN  -->
+=======
+## Target branch
+
+- [ ] This PR targets the correct integration branch: **`lab`** in the private maintainer-preview repository, or **`dev`** in the public repository. `main` remains release-curated.
+
+## Linked Issue
+
+<!-- Public-repository PRs must link an issue:
+     Fixes #NNN  |  Part of #NNN  |  Closes #NNN
+
+     Private maintainer-preview PRs may instead use:
+     N/A — maintainer integration work
+-->
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 Fixes #
 
@@ -20,10 +35,18 @@ Fixes #
 
 ## Checklist
 
+<<<<<<< HEAD
 - [ ] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
 - [ ] This PR targets `main`
 - [ ] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
 - [ ] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+=======
+- [ ] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls) — this is not a duplicate.
+- [ ] This PR targets the correct integration branch (`lab` in maintainer-preview; `dev` in the public repository)
+- [ ] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [ ] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+- [ ] I did not run the app/runtime validation and stated that gap in **How to Test**. Leave this unchecked when the app-run box above is checked.
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 ## How to Test
 

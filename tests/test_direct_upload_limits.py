@@ -40,6 +40,7 @@ def test_direct_upload_routes_use_bounded_reads():
         "routes/stt_routes.py": [
             "read_upload_limited(file, STT_MAX_AUDIO_BYTES",
         ],
+<<<<<<< HEAD
         "routes/gallery_routes.py": [
             "read_upload_limited(file, GALLERY_UPLOAD_MAX_BYTES",
             "read_upload_limited(file, GALLERY_TRANSFORM_UPLOAD_MAX_BYTES",
@@ -51,6 +52,19 @@ def test_direct_upload_routes_use_bounded_reads():
             "read_upload_limited(file, _ICS_MAX_BYTES",
         ],
         "routes/email_routes.py": [
+=======
+        "routes/gallery/gallery_routes.py": [
+            "read_upload_limited(file, GALLERY_UPLOAD_MAX_BYTES",
+            "read_upload_limited(file, GALLERY_TRANSFORM_UPLOAD_MAX_BYTES",
+        ],
+        "routes/memory/memory_routes.py": [
+            "read_upload_limited(file, MEMORY_IMPORT_MAX_BYTES",
+        ],
+        "routes/calendar_routes.py": [
+            "read_upload_limited(file, ICS_MAX_BYTES",
+        ],
+        "routes/email/email_routes.py": [
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
             "read_upload_limited(file, EMAIL_COMPOSE_UPLOAD_MAX_BYTES",
         ],
     }

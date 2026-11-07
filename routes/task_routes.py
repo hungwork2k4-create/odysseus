@@ -1,20 +1,21 @@
-"""CRUD routes for scheduled tasks."""
+"""Backward-compat shim — canonical location is routes/task/task_routes.py.
 
-import json
-import logging
-import secrets
-import uuid
-from datetime import datetime
-from typing import Optional, Dict, Any
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.task_routes``, ``from routes.task_routes import X``,
+``importlib.import_module("routes.task_routes")``, the
+``import ... as task_routes`` + ``monkeypatch.setattr(task_routes,
+"SessionLocal", ...)`` / ``"get_current_user"`` pattern used by multiple
+tests, and the ``task_routes.__file__`` reads in test_auth_regressions.py
+all operate on the *same* object the application actually uses. Keeps
+existing import paths working after slice 2p (#4082/#4071).
+Source-introspection tests read the canonical file by path.
+"""
 
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+import sys as _sys
 
-from core.database import SessionLocal, ScheduledTask, TaskRun
-from src.auth_helpers import get_current_user
-from src.task_scheduler import compute_next_run, HOUSEKEEPING_DEFAULTS
-from routes.prefs_routes import _load_for_user, _save_for_user
+from routes.task import task_routes as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 logger = logging.getLogger(__name__)
 
 
@@ -997,3 +998,6 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             return {"success": False, "message": str(e)}
 
     return router
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

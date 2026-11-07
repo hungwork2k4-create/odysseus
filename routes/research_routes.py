@@ -1,5 +1,6 @@
-"""Research background task routes — /api/research/*."""
+"""Backward-compat shim — canonical location is routes/research/research_routes.py.
 
+<<<<<<< HEAD
 import asyncio
 import json
 import logging
@@ -16,9 +17,23 @@ from src.endpoint_resolver import resolve_endpoint
 from src.auth_helpers import _auth_disabled, get_current_user
 
 _SESSION_ID_RE = re.compile(r"^[a-zA-Z0-9-]{1,128}$")
+=======
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.research_routes``, ``from routes.research_routes import X``,
+``importlib.import_module("routes.research_routes")``, and
+``monkeypatch.setattr("routes.research_routes.ATTR", ...)`` (string-targeted
+patch used by ``test_research_owner_scope_routes.py``) all operate on the
+*same* object the application actually uses. Keeps existing import paths
+working after slice 2b (#4082/#4071). Source-introspection tests read the
+canonical file by path.
+"""
 
-logger = logging.getLogger(__name__)
+import sys as _sys
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
+from routes.research import research_routes as _canonical  # noqa: F401
+
+<<<<<<< HEAD
 # Model-name substrings that are NOT chat/generation models — research must
 # never pick these as its model. An OpenAI-style endpoint often lists
 # `text-embedding-ada-002` etc. first in its model list, which is why research
@@ -659,3 +674,6 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
         }
 
     return router
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

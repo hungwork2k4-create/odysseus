@@ -1,15 +1,18 @@
+"""Compatibility import for the canonical memory manager.
 
-import json
-import logging
-import os
-import time
-import uuid
-import re
-from typing import List, Dict, Tuple
-from datetime import datetime
+Historically this package carried a second copy of ``MemoryManager``. The
+application runtime instantiates ``src.memory.MemoryManager``, so keeping a
+parallel implementation here risks silent drift between import paths.
+"""
 
-logger = logging.getLogger(__name__)
+from src.memory import (
+    MemoryManager,
+    MemoryStoreUnreadable,
+    get_text_similarity,
+    tokenize,
+)
 
+<<<<<<< HEAD
 def tokenize(text: str) -> List[str]:
     """Simple tokenizer that splits on whitespace and removes punctuation."""
     return [cleaned for word in text.split() if (cleaned := word.strip('.,!?";'))]
@@ -362,3 +365,11 @@ class MemoryManager:
         # Sort by final score (descending) and return top matches
         relevant.sort(key=lambda x: x[0], reverse=True)
         return [mem for _, mem in relevant[:max_items]]
+=======
+__all__ = [
+    "MemoryManager",
+    "MemoryStoreUnreadable",
+    "get_text_similarity",
+    "tokenize",
+]
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

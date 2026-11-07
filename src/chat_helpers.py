@@ -12,6 +12,11 @@ from urllib.parse import urlparse
 from fastapi import HTTPException
 from fastapi import UploadFile
 from typing import List, Optional
+<<<<<<< HEAD
+=======
+
+from src.upload_limits import format_byte_limit, get_chat_upload_max_bytes
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +27,14 @@ def extract_urls(text: str) -> List[str]:
     urls = re.findall(url_pattern, text)
     cleaned_urls = []
     for url in urls:
-        url = re.sub(r'[.,;:!?\)]+$', '', url)
+        # Strip trailing sentence punctuation, but keep a balanced ')' so URLs
+        # that legitimately end in one are preserved, e.g. the Wikipedia link
+        # ".../Python_(programming_language)". A ')' is only dropped when it is
+        # unbalanced (more ')' than '('), which is the prose-glued case such as
+        # "(see https://example.com)".
+        url = re.sub(r'[.,;:!?]+$', '', url)
+        while url.endswith(')') and url.count(')') > url.count('('):
+            url = re.sub(r'[.,;:!?]+$', '', url[:-1])
         cleaned_urls.append(url)
     return cleaned_urls
 
@@ -38,6 +50,15 @@ _VISION_MODEL_KEYWORDS = (
     # open / local
     "vision", "multimodal", "llava", "bakllava", "moondream", "pixtral", "minicpm",
     "internvl", "cogvlm", "qwen-vl", "qwen2-vl", "qwen3-vl", "qwen3vl",
+<<<<<<< HEAD
+=======
+    # Qwen3.5 is a natively multimodal family even when a served-model alias
+    # omits the traditional "VL" suffix (for example qwen35-9b-base-native).
+    "qwen3.5", "qwen3_5", "qwen35",
+    # The hosted Flash alias accepts images despite lacking a vision/VL suffix.
+    # Keep this exact: deepseek-v4-pro on the same provider is text-only.
+    "deepseek-flash",
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     # multimodal families whose names don't contain "vision"/"vl" but DO accept
     # images — without these the image is silently dropped for common Ollama tags
     # like gemma3:4b or gemma4:12b (issue #1274). Gemma 3/4 (4b+), Llama 4 (all),
@@ -201,12 +222,13 @@ def validate_file_upload(file: UploadFile) -> UploadFile:
                 }
             )
 
-        if file_size > 10 * 1024 * 1024:
+        upload_limit = get_chat_upload_max_bytes()
+        if file_size > upload_limit:
             raise HTTPException(
                 status_code=400,
                 detail={
                     "error": "FILE_TOO_LARGE",
-                    "message": "File size exceeds 10MB limit"
+                    "message": f"File size exceeds {format_byte_limit(upload_limit)} limit"
                 }
             )
     except IOError as e:

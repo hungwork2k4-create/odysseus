@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import ast
 from pathlib import Path
 
@@ -29,6 +30,16 @@ def test_gallery_url_normalization_bug():
             def __init__(self, url):
                 self.base_url = url
         return eval(compiled_code, {}, {"ep": MockEP(ep_url), "base": base_url})
+=======
+def test_gallery_url_normalization_bug():
+    from routes.gallery_routes import _normalize_image_endpoint_base
+
+    def check_match(ep_url: str, base_url: str) -> bool:
+        return (
+            _normalize_image_endpoint_base(ep_url)
+            == _normalize_image_endpoint_base(base_url)
+        )
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     # Test cases that SHOULD NOT match under a correct implementation
     # (Buggy rstrip('/v1') logic incorrectly treats these as equal)

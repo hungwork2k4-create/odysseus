@@ -1,15 +1,15 @@
-"""Search analytics, metrics tracking, and exception hierarchy."""
+"""Compatibility re-export shim for the live analytics module.
 
-import json
-import logging
-from collections import Counter
-from pathlib import Path
-from typing import Dict, Any
+The real implementation lives in :mod:`services.search.analytics`, which is
+what the search runtime imports. Alias this module to that implementation so
+mutable module state such as ``ANALYTICS_FILE`` cannot drift out of sync.
+"""
 
-from .cache import cache_metrics
+import sys
 
-logger = logging.getLogger(__name__)
+from services.search import analytics as _analytics
 
+<<<<<<< HEAD
 # Dedicated error logger with file handler
 _error_log_path = Path(__file__).resolve().parent.parent / "search_engine_error.log"
 _error_handler = logging.FileHandler(_error_log_path, encoding="utf-8")
@@ -139,3 +139,6 @@ def get_search_stats() -> Dict[str, Any]:
         "runtime_cache_hits": cache_metrics["hits"],
         "runtime_cache_misses": cache_metrics["misses"],
     }
+=======
+sys.modules[__name__] = _analytics
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

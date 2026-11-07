@@ -17,6 +17,8 @@ import os
 import re
 from typing import Optional
 
+from src.memory import MemoryStoreUnreadable
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,6 +90,29 @@ EXTRACT_SYSTEM_PROMPT = (
 # How many recent messages to include for extraction
 CONTEXT_WINDOW = 6
 
+PERSONA_MEMORY_SYSTEM_PROMPT = (
+    "You maintain concise continuity notes for one active chat persona. "
+    "Update the existing notes using only durable details established in the transcript. "
+    "Keep details that help the same persona stay consistent in future conversations: "
+    "relationship context, names, preferences, recurring story details, boundaries, and unresolved threads. "
+    "Do not store generic chat events, temporary wording, assistant reasoning, or one-off requests. "
+    "Never invent details. Return only the updated notes as short bullet points, max 12 bullets. "
+    "If there is nothing worth keeping, return the existing notes unchanged or an empty string."
+)
+
+HEALTH_PERSONA_MEMORY_SYSTEM_PROMPT = (
+    "You maintain a cautious health-record brief for a medical reasoning persona. "
+    "Update the existing brief using only medically durable information from the transcript. "
+    "Keep facts that may matter in future health conversations: confirmed diagnoses, chronic conditions, "
+    "surgeries/procedures, allergies, regular medications/supplements, important test results, clinicians/hospitals, "
+    "ongoing symptoms or care plans, and the user's preferences for medical explanations. "
+    "Use uncertainty labels when needed: 'reported', 'possible', 'asked about', 'unclear'. "
+    "Do not turn guesses into diagnoses. Do not store casual one-off symptoms unless they are recurring, severe, "
+    "or tied to an ongoing episode. Never invent facts. Return only the updated brief with these headings when useful: "
+    "Medical profile, Medications/allergies, Episodes/open questions, Preferences. Max 16 concise bullets total. "
+    "If nothing medically durable changed, return the existing brief unchanged or an empty string."
+)
+
 AUDIT_SYSTEM_PROMPT = (
     "You are a memory database curator. Be CONSERVATIVE: remove only TRUE "
     "duplicates and clearly useless entries. Every distinct fact must survive. "
@@ -110,6 +135,20 @@ AUDIT_SYSTEM_PROMPT = (
 )
 
 AUDIT_INTERVAL = 5  # audit every N new memories added
+AUTO_PINNED_IDENTITY_LIMIT = 5
+
+
+def _is_owner_memory(entry, owner):
+    if owner:
+        return entry.get("owner") == owner or entry.get("owner") is None
+    return True
+
+
+def _is_auto_pinned_identity(entry):
+    return (
+        bool(entry.get("pinned"))
+        and (entry.get("category") or "").lower() in {"identity", "contact"}
+    )
 _extractions_since_audit = 0
 
 
@@ -192,11 +231,19 @@ def _fallback_memory_candidates(messages) -> list[dict]:
             if place:
                 add(f"User lives in {place}.", "identity")
 
-        m = re.search(r"\bi (?:prefer|like|love|hate|do not like|don't like)\s+([^.!?\n]{4,100})", text, re.I)
+        m = re.search(r"\bi (prefer|like|love|hate|do not like|don't like)\s+([^.!?\n]{4,100})", text, re.I)
         if m:
-            preference = _clean_memory_value(m.group(1), 100)
+            preference = _clean_memory_value(m.group(2), 100)
             if preference:
-                add(f"User prefers {preference}.", "preference")
+                # The same pattern catches likes and dislikes; keep the stored
+                # sentiment faithful instead of recording every match as a
+                # preference ("I hate cilantro" must not become "User prefers
+                # cilantro").
+                verb = m.group(1).lower()
+                if verb in ("hate", "do not like", "don't like"):
+                    add(f"User dislikes {preference}.", "preference")
+                else:
+                    add(f"User prefers {preference}.", "preference")
 
         m = re.search(
             r"\bi (?:(?:want|would like|plan|hope) to|wanna) "
@@ -228,6 +275,43 @@ def _is_text_duplicate(new_text: str, existing: list, threshold: float = 0.6) ->
     return False
 
 
+def _parse_extraction_json(raw: str) -> list:
+    """Parse the extraction LLM's reply into a list of facts, tolerating
+    reasoning-model noise.
+
+    The model emits <think>…</think> (and sometimes a prose preamble or a
+    ```json fence) AROUND the JSON array; without stripping it, json.loads
+    bombs and the run silently yields "0 candidates". Pure str -> list (no
+    LLM/network); returns [] on any parse failure instead of raising.
+    """
+    text = (raw or "").strip()
+    try:
+        from src.text_helpers import strip_think as _strip_think
+        text = _strip_think(text, prose=True, prompt_echo=True).strip()
+    except Exception:
+        pass
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    # JSON may still be embedded in surrounding commentary (leading prose or
+    # trailing remarks like "[...] Done!") — slice from the first '[' to the
+    # last ']' whenever both exist. Slice unconditionally: a reply that starts
+    # with '[' can still carry trailing commentary that breaks json.loads.
+    _start = text.find("[")
+    _end = text.rfind("]")
+    if 0 <= _start < _end:
+        text = text[_start : _end + 1]
+
+    try:
+        facts = json.loads(text)
+    except json.JSONDecodeError:
+        logger.debug("Memory extraction returned non-JSON: %r", (raw or "")[:120])
+        return []
+    except Exception:
+        logger.debug("Memory extraction returned non-JSON: %r", (raw or "")[:120])
+        return []
+    return facts if isinstance(facts, list) else []
+
+
 async def extract_and_store(
     session,
     memory_manager,
@@ -247,6 +331,7 @@ async def extract_and_store(
 
     try:
         from src.llm_core import llm_call_async
+        from src.utility_effort import effort_for_call
 
         # Get last N messages from session
         messages = session.get_context_messages()
@@ -270,15 +355,52 @@ async def extract_and_store(
                     continue
                 content = text_only
             stripped_recent.append({"role": role, "content": content})
+<<<<<<< HEAD
+
+        if not stripped_recent:
+            return
+
+        fallback_facts = _fallback_memory_candidates(stripped_recent)
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
         if not stripped_recent:
             return
 
         fallback_facts = _fallback_memory_candidates(stripped_recent)
 
+        # Flatten the window into a SINGLE user message instead of appending the
+        # raw alternating role messages. Passed as raw chat messages, the model
+        # treats the window as a conversation to CONTINUE rather than a transcript
+        # to ANALYZE, so it reliably extracts nothing — typically returning `[]`
+        # (and, depending on the input, sometimes an empty or <think>-only
+        # completion when the window ends on an assistant turn). This was the real
+        # cause of auto-memory logging "0 candidates" on every run. Reframing it as
+        # one "analyze this transcript, return the JSON array" user message makes
+        # the model actually extract. Controlled repro on this model: 0/6 trials
+        # with the old structure vs 6/6 with this one. The skill extractor flattens
+        # for the same reason.
+        def _flatten_msg(m):
+            c = m.get("content", "")
+            if isinstance(c, list):
+                c = " ".join(
+                    b.get("text", "") for b in c
+                    if isinstance(b, dict) and b.get("type") == "text"
+                )
+            return f"{m.get('role', '?')}: {c}"
+
+        transcript = "\n\n".join(_flatten_msg(m) for m in stripped_recent)
         extraction_messages = [
             {"role": "system", "content": EXTRACT_SYSTEM_PROMPT},
+<<<<<<< HEAD
         ] + stripped_recent
+=======
+            {"role": "user", "content": (
+                "Conversation to analyze:\n\n" + transcript
+                + "\n\nReturn the JSON array of durable facts now (or [] if none)."
+            )},
+        ]
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
         facts = []
         try:
@@ -287,19 +409,23 @@ async def extract_and_store(
                 model,
                 extraction_messages,
                 temperature=0.1,
-                max_tokens=500,
+                # A reasoning model spends most of its budget on <think> tokens
+                # BEFORE emitting the JSON, so the old 500 truncated the response
+                # before any JSON appeared → every run logged "0 candidates". The
+                # audit path hit the same wall and raised to 16384; extraction's
+                # output (a short facts list) is small, so an ample ceiling is
+                # enough once thinking has room.
+                max_tokens=4096,
                 headers=headers,
+                reasoning_effort=effort_for_call(
+                    endpoint_url, model, getattr(session, "owner", None), session
+                ),
             )
 
-            # Parse JSON from response (handle markdown fences if model wraps them)
-            text = raw.strip()
-            if text.startswith("```"):
-                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-
-            try:
-                facts = json.loads(text)
-            except json.JSONDecodeError:
-                logger.debug("Memory extraction returned non-JSON")
+            # Parse JSON, tolerating reasoning-model noise (<think> blocks, a
+            # ```json fence, and leading/trailing commentary). See
+            # _parse_extraction_json — returns [] rather than raising.
+            facts = _parse_extraction_json(raw)
         except Exception as e:
             logger.warning(f"LLM memory extraction failed; using fallback candidates if available: {e}")
 
@@ -316,8 +442,18 @@ async def extract_and_store(
         # Get owner from session
         _owner = getattr(session, 'owner', None)
 
-        existing = memory_manager.load_all()
+        # Strict load: this is a read-modify-write. Degrading to [] here would
+        # save only the newly extracted facts and drop the entire store.
+        try:
+            existing = memory_manager.load_all_for_update()
+        except MemoryStoreUnreadable as e:
+            logger.error("Skipping auto memory extraction, store unreadable: %s", e)
+            return
         added = 0
+        auto_pinned_identity_count = sum(
+            1 for entry in existing
+            if _is_owner_memory(entry, _owner) and _is_auto_pinned_identity(entry)
+        )
 
         for fact in facts:
             if isinstance(fact, str):
@@ -325,7 +461,7 @@ async def extract_and_store(
                 category = "fact"
             elif isinstance(fact, dict):
                 fact_text = fact.get("text", "").strip()
-                category = fact.get("category", "fact")
+                category = str(fact.get("category", "fact") or "fact")
             else:
                 continue
 
@@ -345,8 +481,17 @@ async def extract_and_store(
                     logger.warning(f"Memory dedup (vector) unavailable, using text fallback: {e}")
                     existing_id = None
                 if existing_id:
-                    logger.debug(f"Memory dedup (vector): '{fact_text[:50]}' matches {existing_id}")
-                    continue
+                    # The vector store is a single shared collection with no
+                    # owner metadata, so find_similar can return ANOTHER
+                    # tenant's memory. Only treat it as a duplicate when the
+                    # match is this user's own (or a legacy unowned) memory —
+                    # otherwise the user's freshly-extracted fact would be
+                    # silently dropped. Mirror the owner predicate used by the
+                    # text dedup below; cross-tenant/stale matches fall through.
+                    _match = next((e for e in existing if e.get("id") == existing_id), None)
+                    if _match is not None and (_match.get("owner") == _owner or _match.get("owner") is None):
+                        logger.debug(f"Memory dedup (vector): '{fact_text[:50]}' matches {existing_id}")
+                        continue
 
             # Text dedup fallback: exact match + fuzzy similarity
             user_existing = [e for e in existing if e.get("owner") == _owner or e.get("owner") is None] if _owner else existing
@@ -358,9 +503,15 @@ async def extract_and_store(
                 continue
 
             entry = memory_manager.add_entry(fact_text, source="auto", category=category, owner=_owner)
-            # Auto-pin identity facts (name, job, location) — core context
-            if category == "identity":
+            # Auto-pin only the first few identity/contact facts. Extra identity
+            # memories are still saved, but they must be recalled by relevance
+            # instead of riding along in every prompt forever.
+            if (
+                category.lower() in {"identity", "contact"}
+                and auto_pinned_identity_count < AUTO_PINNED_IDENTITY_LIMIT
+            ):
                 entry["pinned"] = True
+                auto_pinned_identity_count += 1
             if hasattr(session, "session_id"):
                 entry["session_id"] = session.session_id
             elif hasattr(session, "name"):
@@ -404,6 +555,94 @@ async def extract_and_store(
         logger.error(f"Memory extraction failed: {e}")
 
 
+async def update_persona_memory(
+    session,
+    preset_manager,
+    character_name: str,
+    endpoint_url: str,
+    model: str,
+    headers: Optional[dict] = None,
+    schema: str = "general",
+):
+    """Update the active persona's continuity notes from recent conversation.
+
+    Persona memory is stored with the persona/template data, not in the global
+    memory DB, so deleting a saved persona also deletes its notes.
+    """
+    character_name = (character_name or "").strip()
+    if not character_name or not endpoint_url or not model or preset_manager is None:
+        return
+
+    try:
+        from src.llm_core import llm_call_async
+        from src.utility_effort import effort_for_call
+        from src.text_helpers import strip_think
+
+        custom = {}
+        try:
+            custom = preset_manager.presets.get("custom", {}) if isinstance(preset_manager.presets, dict) else {}
+        except Exception:
+            custom = {}
+        existing_memory = ""
+        if isinstance(custom, dict) and custom.get("character_name") == character_name:
+            existing_memory = custom.get("persona_memory", "") or ""
+
+        messages = session.get_context_messages()
+        recent = messages[-CONTEXT_WINDOW:] if len(messages) > CONTEXT_WINDOW else messages
+        if len(recent) < 2:
+            return
+
+        lines = []
+        for msg in recent:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(
+                    b.get("text", "") for b in content
+                    if isinstance(b, dict) and b.get("type") == "text"
+                )
+            content = str(content or "").strip()
+            if content:
+                lines.append(f"{role}: {content}")
+        if not lines:
+            return
+
+        system_prompt = HEALTH_PERSONA_MEMORY_SYSTEM_PROMPT if schema == "health" else PERSONA_MEMORY_SYSTEM_PROMPT
+        raw = await llm_call_async(
+            endpoint_url,
+            model,
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": (
+                    f"Persona name: {character_name}\n\n"
+                    f"Existing continuity notes:\n{existing_memory or '(none)'}\n\n"
+                    "Recent transcript:\n"
+                    + "\n\n".join(lines)
+                    + "\n\nReturn only the updated continuity notes."
+                )},
+            ],
+            temperature=0.1,
+            max_tokens=1200,
+            headers=headers,
+            reasoning_effort=effort_for_call(
+                endpoint_url, model, getattr(session, "owner", None), session
+            ),
+        )
+
+        updated = strip_think(str(raw or ""), prose=True, prompt_echo=True).strip()
+        # No leading `\s*` before the closing fence: .strip() drops that
+        # whitespace anyway, and scanning it from every offset was quadratic.
+        updated = re.sub(r"^```(?:text|markdown)?\s*|```$", "", updated, flags=re.I | re.S).strip()
+        if len(updated) > 6000:
+            updated = updated[:6000].rstrip()
+        if updated == existing_memory:
+            return
+        if preset_manager.update_persona_memory(character_name, updated):
+            logger.info("Updated persona memory for %s", character_name)
+    except Exception as e:
+        logger.warning("Persona memory update failed: %s", e)
+
+
 async def audit_memories(
     memory_manager,
     memory_vector,
@@ -424,6 +663,7 @@ async def audit_memories(
     """
     try:
         from src.llm_core import llm_call_async
+        from src.utility_effort import effort_for_call
 
         existing = memory_manager.load(owner=owner)
         if not existing:
@@ -472,13 +712,15 @@ async def audit_memories(
             # Bound the call so the Tidy whirlpool can't spin indefinitely on a
             # slow/large generation.
             timeout=120,
+            reasoning_effort=effort_for_call(endpoint_url, model, owner),
         )
 
         # Parse the JSON list, tolerating reasoning-model noise: <think> blocks,
         # markdown fences, leading prose, and trailing commas.
         import re as _re
+        from src.text_helpers import strip_closed_think_blocks
         text = (raw or "").strip()
-        text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', text, flags=_re.I).strip()
+        text = strip_closed_think_blocks(text).strip()
 
         def _loads_list(s):
             if not s:
@@ -494,7 +736,9 @@ async def audit_memories(
 
         cleaned = _loads_list(text)
         if cleaned is None:
-            _m = _re.search(r'```(?:json)?\s*\n?([\s\S]*?)```', text)
+            # Possessive `\s*+`: handing fence whitespace back to the body on a
+            # missing closing fence only rescanned the same tail (ReDoS).
+            _m = _re.search(r'```(?:json)?\s*+\n?([\s\S]*?)```', text)
             if _m:
                 cleaned = _loads_list(_m.group(1).strip())
         if cleaned is None:
@@ -546,7 +790,18 @@ async def audit_memories(
 
         # Merge audited entries back with other users' entries
         if owner:
-            all_entries = memory_manager.load_all()
+            # Strict load: the merge below reconstructs the whole file. If this
+            # degraded to [] we would save only this owner's audited slice and
+            # destroy every other tenant's memories.
+            try:
+                all_entries = memory_manager.load_all_for_update()
+            except MemoryStoreUnreadable as e:
+                logger.error("Aborting memory audit save, store unreadable: %s", e)
+                return {
+                    "before": before_count,
+                    "after": before_count,
+                    "error": "store_unreadable",
+                }
             audited_ids = {e["id"] for e in final_entries}
             other_entries = [e for e in all_entries if e.get("owner") != owner and (e.get("owner") is not None)]
             # Also keep legacy entries that weren't part of this audit

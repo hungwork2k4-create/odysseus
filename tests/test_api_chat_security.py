@@ -76,7 +76,11 @@ def _load_webhook_routes_for_test(monkeypatch):
     module_name = "routes.webhook_routes_under_test"
     spec = importlib.util.spec_from_file_location(
         module_name,
+<<<<<<< HEAD
         Path(__file__).resolve().parent.parent / "routes" / "webhook_routes.py",
+=======
+        Path(__file__).resolve().parent.parent / "routes" / "webhook" / "webhook_routes.py",
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -219,6 +223,12 @@ class _WebhookManager:
     async def fire(self, event, payload):
         return None
 
+<<<<<<< HEAD
+=======
+    def fire_and_forget(self, event, payload):
+        return None
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 def _install_sync_chat_stubs(monkeypatch):
     # FastAPI checks for python_multipart at import time when Form is used;

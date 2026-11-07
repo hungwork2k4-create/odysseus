@@ -1,14 +1,17 @@
-"""Webhook, API Token, and sync chat routes."""
+"""Backward-compat shim — canonical location is routes/webhook/webhook_routes.py.
 
-import asyncio
-import uuid
-import logging
-from typing import Optional
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.webhook_routes``, ``from routes.webhook_routes import X``,
+``importlib.import_module("routes.webhook_routes")``, and the
+``__import__("routes.webhook_routes", fromlist=[...])`` + ``setattr(wh_mod,
+...)`` pattern used by test_null_owner_gates.py all operate on the *same*
+object. Keeps existing import paths working after slice 2l (#4082/#4071).
+Source-introspection tests read the canonical file by path.
+"""
 
-import httpx
-from fastapi import APIRouter, HTTPException, Request, Form
-from pydantic import BaseModel, Field
+import sys as _sys
 
+<<<<<<< HEAD
 from core.database import SessionLocal, Webhook, ModelEndpoint
 from src.auth_helpers import owner_filter
 from src.url_security import validate_public_http_url
@@ -376,3 +379,8 @@ def setup_webhook_routes(
         return {"response": reply, "session_id": session_id, "model": sess.model}
 
     return router
+=======
+from routes.webhook import webhook_routes as _canonical  # noqa: F401
+
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

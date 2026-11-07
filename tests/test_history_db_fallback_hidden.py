@@ -5,9 +5,15 @@ The in-memory branch skips messages whose metadata has ``hidden`` (e.g.
 compaction summaries that are kept for AI context but not shown to the user).
 The DB fallback (taken when the in-memory history is empty, e.g. after a
 restart) built the client response from every DB row with no such filter, so
+<<<<<<< HEAD
 hidden messages leaked to the client on DB-served sessions. The rebuilt
 in-memory ``session.history`` must still keep them, though, so only the response
 is filtered.
+=======
+hidden messages leaked to the client on DB-served sessions. Hydration of
+``session.history`` belongs to ``get_session``; this fallback only shapes the
+response, so only the response is filtered.
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 get_session_history depends on the DB, the session manager and a FastAPI
 request, so this pins the regression at the source level (as other route tests
@@ -16,7 +22,11 @@ in this repo do).
 import ast
 from pathlib import Path
 
+<<<<<<< HEAD
 SRC = Path(__file__).resolve().parent.parent / "routes" / "history_routes.py"
+=======
+SRC = Path(__file__).resolve().parent.parent / "routes" / "history" / "history_routes.py"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def _function_source(src_text, name):

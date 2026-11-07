@@ -11,6 +11,17 @@ const _PROVIDERS = [
   [/openai|gpt-|^o[13]-|chatgpt|dall-e/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 10.696.453a6.023 6.023 0 0 0-5.75 4.172 6.061 6.061 0 0 0-3.946 2.945 6.024 6.024 0 0 0 .742 7.099 5.98 5.98 0 0 0 .516 4.911 6.046 6.046 0 0 0 6.51 2.9A5.996 5.996 0 0 0 13.26 23.547a6.023 6.023 0 0 0 5.75-4.172 6.061 6.061 0 0 0 3.946-2.945 6.024 6.024 0 0 0-.674-6.609zM13.26 21.047a4.508 4.508 0 0 1-2.886-1.041l.143-.082 4.793-2.769a.777.777 0 0 0 .391-.676V10.34l2.026 1.17a.072.072 0 0 1 .039.061v5.596a4.532 4.532 0 0 1-4.506 4.48zM3.968 17.64a4.473 4.473 0 0 1-.537-3.018l.143.086 4.793 2.769a.79.79 0 0 0 .782 0l5.852-3.379v2.34a.072.072 0 0 1-.029.062l-4.845 2.796a4.532 4.532 0 0 1-6.159-1.656zM2.804 7.922a4.49 4.49 0 0 1 2.348-1.973V11.6a.778.778 0 0 0 .391.676l5.852 3.378-2.026 1.17a.072.072 0 0 1-.068 0L4.456 14.03a4.532 4.532 0 0 1-1.652-6.108zm16.423 3.823L13.375 8.367l2.026-1.17a.072.072 0 0 1 .068 0l4.845 2.796a4.525 4.525 0 0 1-.7 8.08V12.42a.778.778 0 0 0-.387-.676zm2.015-3.025l-.143-.086-4.793-2.769a.79.79 0 0 0-.782 0L9.672 9.243V6.903a.072.072 0 0 1 .029-.062l4.845-2.796a4.525 4.525 0 0 1 6.696 4.675zM8.598 12.66L6.57 11.49a.072.072 0 0 1-.039-.061V5.833a4.525 4.525 0 0 1 7.413-3.48l-.143.082-4.793 2.769a.777.777 0 0 0-.391.676l-.019 6.78zm1.1-2.379l2.607-1.505 2.607 1.505v3.01l-2.607 1.505-2.607-1.505z"/></svg>'],
 
+<<<<<<< HEAD
+=======
+  // OpenCode (Zen / Go) — official brand mark
+  [/opencode/i,
+    '<svg viewBox="0 0 24 30" fill="currentColor"><path d="M18 6H6V24H18V6ZM24 30H0V0H24V30Z"/></svg>'],
+
+  // GitHub / Copilot
+  [/github|copilot/i,
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A12 12 0 0 0 8.2 23.9c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.3-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C15.3 4.7 16 5 16 5c.6 1.6.2 2.9.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>'],
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   // OpenRouter
   [/openrouter|open router/i,
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 12h4.5c2 0 2.5-6 4.5-6"/><path d="M12 12c2 0 2.5 6 4.5 6"/></svg>'],
@@ -79,6 +90,9 @@ const _PROVIDERS = [
   // NVIDIA / Nemotron (official Simple Icons)
   [/nvidia|nemotron/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.948 8.798v-1.43a6.7 6.7 0 0 1 .424-.018c3.922-.124 6.493 3.374 6.493 3.374s-2.774 3.851-5.75 3.851c-.398 0-.787-.062-1.158-.185v-4.346c1.528.185 1.837.857 2.747 2.385l2.04-1.714s-1.492-1.952-4-1.952a6.016 6.016 0 0 0-.796.035m0-4.735v2.138l.424-.027c5.45-.185 9.01 4.47 9.01 4.47s-4.08 4.964-8.33 4.964c-.37 0-.733-.035-1.095-.097v1.325c.3.035.61.062.91.062 3.957 0 6.82-2.023 9.593-4.408.459.371 2.34 1.263 2.73 1.652-2.633 2.208-8.772 3.984-12.253 3.984-.335 0-.653-.018-.971-.053v1.864H24V4.063zm0 10.326v1.131c-3.657-.654-4.673-4.46-4.673-4.46s1.758-1.944 4.673-2.262v1.237H8.94c-1.528-.186-2.73 1.245-2.73 1.245s.68 2.412 2.739 3.11M2.456 10.9s2.164-3.197 6.5-3.533V6.201C4.153 6.59 0 10.653 0 10.653s2.35 6.802 8.948 7.42v-1.237c-4.84-.6-6.492-5.936-6.492-5.936z"/></svg>'],
+  // Featherless AI (feather icon)
+  [/featherless/i,
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>'],
 ];
 
 // Returns an SVG string for the given model ID, or null if no match
@@ -90,4 +104,92 @@ export function providerLogo(modelId) {
   return null;
 }
 
-export default { providerLogo };
+// Host suffix → friendly provider label. The model-info card shows this so the
+// SAME model name served by DIFFERENT routes is distinguishable (e.g.
+// `claude-haiku` via OpenRouter vs GitHub Copilot vs Anthropic direct); the logo
+// only reflects the model vendor, not the actual endpoint. Patterns are anchored
+// to the end of the hostname (^|.)domain$ so a host like `max.airlines.com`
+// doesn't match `x.ai`.
+const _ENDPOINT_LABELS = [
+  [/(^|\.)githubcopilot\.com$/i, "GitHub Copilot"],
+  [/(^|\.)chatgpt\.com$/i, "ChatGPT Subscription"],
+  [/(^|\.)featherless\.ai$/i, "Featherless.ai"],
+  [/(^|\.)openrouter\.ai$/i, "OpenRouter"],
+  [/(^|\.)anthropic\.com$/i, "Anthropic"],
+  [/(^|\.)openai\.com$/i, "OpenAI"],
+  [/(^|\.)(generativelanguage|aiplatform)\.googleapis\.com$/i, "Google"],
+  [/(^|\.)bedrock[\w.-]*\.amazonaws\.com$/i, "AWS Bedrock"],
+  [/(^|\.)deepseek\.com$/i, "DeepSeek"],
+  [/(^|\.)mistral\.ai$/i, "Mistral"],
+  [/(^|\.)groq\.com$/i, "Groq"],
+  [/(^|\.)together\.(ai|xyz)$/i, "Together"],
+  [/(^|\.)fireworks\.ai$/i, "Fireworks"],
+  [/(^|\.)perplexity\.ai$/i, "Perplexity"],
+  [/(^|\.)nvidia\.com$/i, "NVIDIA"],
+  [/(^|\.)x\.ai$/i, "xAI"],
+];
+
+/**
+ * Friendly label for the endpoint that served a model, from its URL.
+ * Returns "Local" for loopback/LAN hosts, a known provider name when matched,
+ * else the bare host. Null when no URL is available.
+ */
+export function providerLabel(endpointUrl) {
+  if (!endpointUrl || typeof endpointUrl !== "string") return null;
+  let host;
+  try {
+    host = new URL(endpointUrl).hostname;
+  } catch (_) {
+    // Not a full URL (e.g. bare host[:port]) — strip scheme/path best-effort.
+    const stripped = endpointUrl.replace(/^[a-z]+:\/\//i, "").split("/")[0];
+    const colonIdx = stripped.lastIndexOf(":");
+    host = colonIdx >= 0 ? stripped.slice(0, colonIdx) : stripped;
+  }
+  if (!host) return null;
+  const isLoopback = /^(localhost|127\.|0\.0\.0\.0|::1)/.test(host);
+  if (isLoopback) {
+    // Don't name the serving tool from the port — it isn't authoritative
+    // (vLLM/SGLang/llama.cpp share 8000/8080). Discovery identifies the tool by
+    // probing /props and stores the result as the endpoint's name instead.
+    return "Local";
+  }
+  if (/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(host)) {
+    return "Local";
+  }
+  // Shared-address space used by local overlay networks such as Tailscale.
+  if (/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)) return "Local";
+  for (const [re, label] of _ENDPOINT_LABELS) {
+    if (re.test(host)) return label;
+  }
+  // Unknown host → drop a leading "api." for a cleaner readout.
+  return host.replace(/^api\./i, "");
+}
+
+// Map endpoint URL → logo SVG using the same model-id regex catalog.
+// Tests host + port + path so loopback servers (e.g. Ollama on
+// localhost:11434) still match by port. Falls back to null when nothing
+// recognises the URL, so callers can render a neutral placeholder.
+export function providerLogoFromUrl(url) {
+  if (!url) return null;
+  let host = '', port = '', path = '';
+  try {
+    const u = new URL(url);
+    host = u.hostname; port = u.port; path = u.pathname || '';
+  } catch (_) {
+    const raw = String(url).replace(/^[a-z]+:\/\//i, '');
+    const slashIdx = raw.indexOf('/');
+    const hostport = slashIdx >= 0 ? raw.slice(0, slashIdx) : raw;
+    path = slashIdx >= 0 ? raw.slice(slashIdx) : '';
+    const colon = hostport.lastIndexOf(':');
+    host = colon >= 0 ? hostport.slice(0, colon) : hostport;
+    port = colon >= 0 ? hostport.slice(colon + 1) : '';
+  }
+  // Build candidate strings to test against the provider catalog.
+  const candidates = [host, port ? `${host}:${port}` : '', port ? `:${port}` : '', path].filter(Boolean);
+  for (const [re, svg] of _PROVIDERS) {
+    if (candidates.some(c => re.test(c))) return svg;
+  }
+  return null;
+}
+
+export default { providerLogo, providerLabel, providerLogoFromUrl };

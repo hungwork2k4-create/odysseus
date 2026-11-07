@@ -32,8 +32,13 @@ def extract_exif(monkeypatch):
             return MagicMock()
 
     monkeypatch.setitem(sys.modules, "core.database", _DBStub("core.database"))
+<<<<<<< HEAD
     monkeypatch.delitem(sys.modules, "routes.gallery_helpers", raising=False)
     mod = importlib.import_module("routes.gallery_helpers")
+=======
+    monkeypatch.delitem(sys.modules, "routes.gallery.gallery_helpers", raising=False)
+    mod = importlib.import_module("routes.gallery.gallery_helpers")
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     return mod._extract_exif
 
 

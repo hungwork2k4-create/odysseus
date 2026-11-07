@@ -22,6 +22,10 @@ def core(monkeypatch):
     monkeypatch.setattr(mod, "_get_search_settings", lambda: {"search_provider": "searxng"})
     monkeypatch.setattr(mod, "_get_result_count", lambda: 2)
     monkeypatch.setattr(mod, "_call_provider", lambda *a, **k: [dict(r) for r in results])
+<<<<<<< HEAD
+=======
+    monkeypatch.setattr(mod, "_filter_low_relevance_results", lambda q, r: r)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     monkeypatch.setattr(mod, "rank_search_results", lambda q, r: r)
     return mod
 

@@ -67,6 +67,22 @@ _TRUSTED_NEWS_DOMAINS = {
     "www.theguardian.com", "euronews.com", "www.euronews.com",
     "dw.com", "www.dw.com", "government.se", "www.government.se",
 }
+_SOFTWARE_RELEASE_HINTS = {
+    "github", "gitlab", "release", "releases", "version", "versions",
+    "changelog", "package", "pypi", "npm",
+}
+_PRODUCT_SPEC_HINTS = {
+    "product", "hardware", "device", "phone", "laptop", "desktop", "computer",
+    "chip", "cpu", "gpu", "mac", "iphone", "ipad", "android", "camera",
+    "console", "kindle", "tesla", "car", "model", "price", "pricing", "cost",
+    "buy", "shop", "order", "preorder", "pre-order", "spec", "specs",
+    "specifications", "available", "availability", "ship", "shipping",
+    "released", "launch", "launched", "vram", "memory", "ram", "storage",
+}
+_COMMERCE_OR_SPEC_PATH_HINTS = (
+    "/shop", "/buy", "/store", "/product", "/products", "/spec", "/specs",
+    "/support", "/tech-specs", "/technical-specifications",
+)
 
 
 def _domain(url: str) -> str:
@@ -76,25 +92,43 @@ def _domain(url: str) -> str:
         return ""
 
 
+def _has_word(text: str, term: str) -> bool:
+    """True if ``term`` appears in ``text`` as a whole word.
+
+    Query terms are matched on word boundaries so a short term doesn't match
+    inside an unrelated word: "us" must not match "business"/"music", "port"
+    must not match "transport"/"support". This mirrors the tokenization used to
+    build ``query_terms`` (``\\b\\w+\\b``). #1473 converted the title and sports
+    checks to word boundaries; the snippet and subject-term checks below use
+    the same helper so the whole file stays consistent.
+    """
+    return re.search(rf"\b{re.escape(term)}\b", text) is not None
+
+
 def rank_search_results(query: str, results: List[dict]) -> List[dict]:
     """Rank search results by title relevance, snippet quality, domain authority, and recency."""
     query_terms = [t.lower() for t in re.findall(r"\b\w+\b", query)]
     query_lc = query.lower()
     is_news_query = any(term in _NEWS_HINTS for term in query_terms)
     is_sports_query = bool(_SPORTS_HINT_RE.search(query_lc))
+<<<<<<< HEAD
+=======
+    is_software_release_query = any(term in _SOFTWARE_RELEASE_HINTS for term in query_terms)
+    is_product_spec_query = any(term in _PRODUCT_SPEC_HINTS for term in query_terms)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     def title_score(title: str) -> float:
         if not title:
             return 0.0
         title_lc = title.lower()
-        matches = sum(1 for term in query_terms if re.search(rf"\b{re.escape(term)}\b", title_lc))
+        matches = sum(1 for term in query_terms if _has_word(title_lc, term))
         return matches / len(query_terms) if query_terms else 0.0
 
     def snippet_score(snippet: str) -> float:
         if not snippet:
             return 0.0
         length_factor = min(len(snippet), 200) / 200
-        term_hits = sum(1 for term in query_terms if term in snippet.lower())
+        term_hits = sum(1 for term in query_terms if _has_word(snippet.lower(), term))
         term_factor = term_hits / len(query_terms) if query_terms else 0.0
         return (length_factor + term_factor) / 2
 
@@ -127,8 +161,43 @@ def rank_search_results(query: str, results: List[dict]) -> List[dict]:
         # A country/news query should not rank a page whose title/snippet barely
         # mentions the country above actual news pages for that country.
         subject_terms = [t for t in query_terms if t not in _NEWS_HINTS]
-        if subject_terms and not any(t in text or t in netloc for t in subject_terms):
+        if subject_terms and not any(_has_word(text, t) or _has_word(netloc, t) for t in subject_terms):
             adjustment -= 1.0
+        return adjustment
+
+    def software_release_adjustment(title: str, snippet: str, url: str) -> float:
+        if not is_software_release_query:
+            return 0.0
+        netloc = _domain(url)
+        path = urlparse(url).path.lower()
+        text = f"{title} {snippet} {netloc} {path}".lower()
+        adjustment = 0.0
+        if netloc in {"github.com", "www.github.com", "gitlab.com", "www.gitlab.com"}:
+            adjustment += 1.6
+        if "/releases" in path or "/tags" in path:
+            adjustment += 1.2
+        if any(_has_word(text, term) for term in ("release", "releases", "changelog", "version")):
+            adjustment += 0.4
+        if netloc in {"releasealert.dev", "releases.sh", "releasebot.io"}:
+            adjustment -= 0.8
+        return adjustment
+
+    def product_spec_adjustment(title: str, snippet: str, url: str) -> float:
+        if not is_product_spec_query:
+            return 0.0
+        parsed = urlparse(url)
+        netloc = parsed.netloc.lower()
+        path = parsed.path.lower()
+        text = f"{title} {snippet} {netloc} {path}".lower()
+        adjustment = 0.0
+        if any(hint in path for hint in _COMMERCE_OR_SPEC_PATH_HINTS):
+            adjustment += 1.1
+        if re.search(r"\b(?:official|specs?|specifications|tech specs|buy|shop|store|price|pricing|available|ships?)\b", text):
+            adjustment += 0.5
+        if netloc.endswith(".com") and any(_has_word(netloc, term) for term in query_terms if len(term) >= 4):
+            adjustment += 0.4
+        if re.search(r"\b(?:rumor|rumour|leak|may|could|expected|reportedly|unannounced)\b", text):
+            adjustment -= 0.8
         return adjustment
 
     ranked = []
@@ -144,6 +213,8 @@ def rank_search_results(query: str, results: List[dict]) -> List[dict]:
             + 1.5 * domain_score(url)
             + 1.0 * recency_score(age)
             + news_quality_adjustment(title, snippet, url)
+            + software_release_adjustment(title, snippet, url)
+            + product_spec_adjustment(title, snippet, url)
         )
         ranked.append((score, result))
 

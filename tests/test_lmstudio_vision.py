@@ -95,6 +95,11 @@ class TestModelSupportsVision:
     def test_falls_back_to_name_when_no_endpoint(self):
         # No endpoint URL → pure name heuristic.
         assert chat_helpers.model_supports_vision("llava-1.6", "") is True
+<<<<<<< HEAD
+=======
+        assert chat_helpers.model_supports_vision("deepseek-flash", "") is True
+        assert chat_helpers.model_supports_vision("deepseek-v4-pro", "") is False
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         assert chat_helpers.model_supports_vision("mistral-7b", "") is False
 
     def test_falls_back_to_name_when_endpoint_unknown(self, monkeypatch):

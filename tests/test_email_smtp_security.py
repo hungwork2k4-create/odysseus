@@ -12,7 +12,11 @@ from routes.email_helpers import _send_smtp_message
 class _FakeSMTP:
     calls = []
 
+<<<<<<< HEAD
     def __init__(self, host, port, timeout=None):
+=======
+    def __init__(self, host, port, timeout=None, **_policy):
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -54,8 +58,13 @@ def test_send_smtp_message_supports_plain_smtp(monkeypatch):
     import routes.email_helpers as helpers
 
     _FakeSMTP.calls = []
+<<<<<<< HEAD
     monkeypatch.setattr(helpers.smtplib, "SMTP", _FakeSMTP)
     monkeypatch.setattr(helpers.smtplib, "SMTP_SSL", _FakeSMTPSSL)
+=======
+    monkeypatch.setattr(helpers, "_PolicySMTP", _FakeSMTP)
+    monkeypatch.setattr(helpers, "_PolicySMTP_SSL", _FakeSMTPSSL)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     _send_smtp_message(_cfg("none"), "from@example.com", ["to@example.com"], "hello")
 
@@ -68,8 +77,13 @@ def test_send_smtp_message_supports_explicit_starttls(monkeypatch):
     import routes.email_helpers as helpers
 
     _FakeSMTP.calls = []
+<<<<<<< HEAD
     monkeypatch.setattr(helpers.smtplib, "SMTP", _FakeSMTP)
     monkeypatch.setattr(helpers.smtplib, "SMTP_SSL", _FakeSMTPSSL)
+=======
+    monkeypatch.setattr(helpers, "_PolicySMTP", _FakeSMTP)
+    monkeypatch.setattr(helpers, "_PolicySMTP_SSL", _FakeSMTPSSL)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     _send_smtp_message(_cfg("starttls", port=2525), "from@example.com", ["to@example.com"], "hello")
 
@@ -82,8 +96,13 @@ def test_send_smtp_message_defaults_587_to_starttls(monkeypatch):
     import routes.email_helpers as helpers
 
     _FakeSMTP.calls = []
+<<<<<<< HEAD
     monkeypatch.setattr(helpers.smtplib, "SMTP", _FakeSMTP)
     monkeypatch.setattr(helpers.smtplib, "SMTP_SSL", _FakeSMTPSSL)
+=======
+    monkeypatch.setattr(helpers, "_PolicySMTP", _FakeSMTP)
+    monkeypatch.setattr(helpers, "_PolicySMTP_SSL", _FakeSMTPSSL)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     cfg = _cfg("", port=587)
     _send_smtp_message(cfg, "from@example.com", ["to@example.com"], "hello")
@@ -96,8 +115,13 @@ def test_send_smtp_message_uses_ssl_when_configured(monkeypatch):
     import routes.email_helpers as helpers
 
     _FakeSMTP.calls = []
+<<<<<<< HEAD
     monkeypatch.setattr(helpers.smtplib, "SMTP", _FakeSMTP)
     monkeypatch.setattr(helpers.smtplib, "SMTP_SSL", _FakeSMTPSSL)
+=======
+    monkeypatch.setattr(helpers, "_PolicySMTP", _FakeSMTP)
+    monkeypatch.setattr(helpers, "_PolicySMTP_SSL", _FakeSMTPSSL)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     _send_smtp_message(_cfg("ssl", port=465), "from@example.com", ["to@example.com"], "hello")
 

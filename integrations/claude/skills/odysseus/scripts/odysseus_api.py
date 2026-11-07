@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
+<<<<<<< HEAD
 """Small Odysseus scoped API helper for Codex terminal sessions."""
+=======
+"""Small Odysseus scoped API helper for Claude Code terminal sessions."""
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 from __future__ import annotations
 
@@ -17,6 +21,23 @@ def _usage() -> int:
     print("  odysseus_api.py todos add TITLE", file=sys.stderr)
     print("  odysseus_api.py emails list [limit]", file=sys.stderr)
     print("  odysseus_api.py emails read UID", file=sys.stderr)
+<<<<<<< HEAD
+=======
+    print("  odysseus_api.py emails draft-doc JSON_PAYLOAD", file=sys.stderr)
+    print("  odysseus_api.py documents list [limit]", file=sys.stderr)
+    print("  odysseus_api.py documents read DOC_ID", file=sys.stderr)
+    print("  odysseus_api.py documents create JSON_PAYLOAD", file=sys.stderr)
+    print("  odysseus_api.py documents delete DOC_ID", file=sys.stderr)
+    print("  odysseus_api.py cookbook tasks", file=sys.stderr)
+    print("  odysseus_api.py cookbook servers", file=sys.stderr)
+    print("  odysseus_api.py cookbook cached [HOST]", file=sys.stderr)
+    print("  odysseus_api.py cookbook presets", file=sys.stderr)
+    print("  odysseus_api.py cookbook output SESSION_ID [tail]", file=sys.stderr)
+    print("  odysseus_api.py cookbook serve REPO_ID 'CMD' [REMOTE_HOST]", file=sys.stderr)
+    print("  odysseus_api.py cookbook preset NAME", file=sys.stderr)
+    print("  odysseus_api.py cookbook adopt SESSION_ID MODEL [HOST] [PORT]", file=sys.stderr)
+    print("  odysseus_api.py cookbook stop SESSION_ID", file=sys.stderr)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     print("  odysseus_api.py METHOD /api/codex/path [json-body]", file=sys.stderr)
     return 2
 
@@ -30,7 +51,11 @@ def _config() -> tuple[str, str] | None:
     if not token:
         missing.append("ODYSSEUS_API_TOKEN")
     if missing:
+<<<<<<< HEAD
         print(f"missing {', '.join(missing)}; create a Codex Agent token in Odysseus Settings", file=sys.stderr)
+=======
+        print(f"missing {', '.join(missing)}; create a Claude Agent token in Odysseus Settings", file=sys.stderr)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         return None
     return base_url, token
 
@@ -70,6 +95,91 @@ def main() -> int:
             method = "GET"
             path = f"/api/codex/emails/{sys.argv[3]}"
             body = None
+<<<<<<< HEAD
+=======
+        elif action in ("draft-doc", "draft_document") and len(sys.argv) >= 4:
+            method = "POST"
+            path = "/api/codex/emails/draft-document"
+            body = " ".join(sys.argv[3:])
+        else:
+            return _usage()
+    elif command in ("documents", "docs"):
+        if len(sys.argv) < 3:
+            return _usage()
+        action = sys.argv[2].lower()
+        if action == "list":
+            method = "GET"
+            limit = sys.argv[3] if len(sys.argv) >= 4 else "50"
+            path = f"/api/codex/documents?limit={limit}"
+            body = None
+        elif action == "read" and len(sys.argv) >= 4:
+            method = "GET"
+            path = f"/api/codex/documents/{sys.argv[3]}"
+            body = None
+        elif action == "create" and len(sys.argv) >= 4:
+            method = "POST"
+            path = "/api/codex/documents"
+            body = " ".join(sys.argv[3:])
+        elif action == "delete" and len(sys.argv) >= 4:
+            method = "DELETE"
+            path = f"/api/codex/documents/{sys.argv[3]}"
+            body = None
+        else:
+            return _usage()
+    elif command == "cookbook":
+        if len(sys.argv) < 3:
+            return _usage()
+        action = sys.argv[2].lower()
+        if action == "tasks":
+            method = "GET"
+            path = "/api/codex/cookbook/tasks"
+            body = None
+        elif action == "servers":
+            method = "GET"
+            path = "/api/codex/cookbook/servers"
+            body = None
+        elif action == "output" and len(sys.argv) >= 4:
+            method = "GET"
+            sid = sys.argv[3]
+            tail = sys.argv[4] if len(sys.argv) >= 5 else "400"
+            path = f"/api/codex/cookbook/output/{sid}?tail={tail}"
+            body = None
+        elif action == "cached":
+            method = "GET"
+            if len(sys.argv) >= 4:
+                from urllib.parse import quote
+                path = f"/api/codex/cookbook/cached?host={quote(sys.argv[3])}"
+            else:
+                path = "/api/codex/cookbook/cached"
+            body = None
+        elif action == "presets":
+            method = "GET"
+            path = "/api/codex/cookbook/presets"
+            body = None
+        elif action == "preset" and len(sys.argv) >= 4:
+            from urllib.parse import quote
+            method = "POST"
+            path = f"/api/codex/cookbook/preset/{quote(sys.argv[3])}"
+            body = None
+        elif action == "adopt" and len(sys.argv) >= 5:
+            method = "POST"
+            path = "/api/codex/cookbook/adopt"
+            payload = {"tmux_session": sys.argv[3], "model": sys.argv[4]}
+            if len(sys.argv) >= 6: payload["host"] = sys.argv[5]
+            if len(sys.argv) >= 7: payload["port"] = int(sys.argv[6])
+            body = json.dumps(payload)
+        elif action == "serve" and len(sys.argv) >= 5:
+            method = "POST"
+            path = "/api/codex/cookbook/serve"
+            payload = {"repo_id": sys.argv[3], "cmd": sys.argv[4]}
+            if len(sys.argv) >= 6:
+                payload["remote_host"] = sys.argv[5]
+            body = json.dumps(payload)
+        elif action == "stop" and len(sys.argv) >= 4:
+            method = "POST"
+            path = f"/api/codex/cookbook/stop/{sys.argv[3]}"
+            body = None
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         else:
             return _usage()
     else:

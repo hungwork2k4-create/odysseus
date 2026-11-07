@@ -1,22 +1,21 @@
-# routes/compare_routes.py
-"""Model A/B comparison routes."""
-import json
-import uuid
-import random
-from datetime import datetime
-from fastapi import APIRouter, Form, HTTPException, Request
-from typing import List
-from pydantic import BaseModel
-import logging
+"""Backward-compat shim — canonical location is routes/compare/compare_routes.py.
 
-from core.database import Comparison, SessionLocal
-from core.session_manager import SessionManager
-from src.auth_helpers import get_current_user
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.compare_routes``, ``from routes.compare_routes import X``,
+``importlib.import_module("routes.compare_routes")``, and the
+``import ... as cr`` + ``monkeypatch.setattr(cr, "SessionLocal", ...)`` /
+``"_owned_endpoint_by_url"`` / ``"_owned_endpoint_by_id"`` pattern used by
+test_endpoint_owner_scope_followup.py all operate on the *same* object the
+application actually uses. Keeps existing import paths working after
+slice 2i (#4082/#4071). Source-introspection tests read the canonical file
+by path.
+"""
 
-logger = logging.getLogger(__name__)
+import sys as _sys
 
-router = APIRouter(prefix="/api/compare", tags=["compare"])
+from routes.compare import compare_routes as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 
 def _owned_endpoint_by_url(db, base_url, owner):
     """ModelEndpoint whose base_url == `base_url` and is VISIBLE to `owner`
@@ -264,3 +263,6 @@ def setup_compare_routes(session_manager: SessionManager):
             db.close()
 
     return router
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

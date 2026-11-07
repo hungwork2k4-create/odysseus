@@ -7,9 +7,21 @@ notably that "metal" is honoured (Apple Silicon is GGUF-only via llama.cpp /
 Ollama) instead of being silently coerced to CUDA.
 """
 
+<<<<<<< HEAD
 from routes.hwfit_routes import _apply_manual_hardware, _MANUAL_BACKENDS
 from services.hwfit.fit import rank_models
 from services.hwfit.models import get_models
+=======
+import pytest
+
+from routes.hwfit_routes import _apply_manual_hardware, _MANUAL_BACKENDS
+from services.hwfit.fit import rank_models
+from services.hwfit.models import get_models
+from tests.hwfit_publication_fixtures import publication_catalog  # noqa: F401
+
+# Rank authored inputs rather than publication catalog snapshots.
+pytestmark = pytest.mark.usefixtures("publication_catalog")
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def test_no_manual_mode_leaves_system_untouched():
@@ -67,11 +79,17 @@ def test_manual_ram_mode_wipes_gpu_and_unified_flag():
     assert "unified_memory" not in s
 
 
+<<<<<<< HEAD
 def test_simulated_metal_box_only_recommends_gguf():
     """End-to-end: a simulated Metal box must rank exactly like a real Mac —
     only models shipping a servable GGUF (llama.cpp/Ollama) survive. Before
     'metal' was accepted, this box ranked as CUDA and surfaced safetensors-only
     repos the Mac can't serve."""
+=======
+def test_simulated_metal_box_only_recommends_gguf_or_mlx():
+    """End-to-end: a simulated Metal box must rank exactly like a real Mac —
+    only locally servable GGUF or MLX models survive."""
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     system = _apply_manual_hardware(
         {"backend": "cuda", "available_ram_gb": 32.0, "total_ram_gb": 64.0},
         manual_mode="gpu", manual_vram_gb="48", manual_backend="metal",
@@ -79,7 +97,16 @@ def test_simulated_metal_box_only_recommends_gguf():
     catalog = {m["name"]: m for m in get_models()}
     unservable = [
         r["name"] for r in rank_models(system, limit=900)
+<<<<<<< HEAD
         if not (catalog.get(r["name"], {}).get("is_gguf")
                 or catalog.get(r["name"], {}).get("gguf_sources"))
     ]
     assert unservable == [], f"{len(unservable)} non-GGUF models on simulated Metal, e.g. {unservable[:3]}"
+=======
+        if not (str(r.get("quant", "")).startswith("mlx-")
+                or str(r.get("name", "")).startswith(("mlx-community/", "lmstudio-community/"))
+                or catalog.get(r["name"], {}).get("is_gguf")
+                or catalog.get(r["name"], {}).get("gguf_sources"))
+    ]
+    assert unservable == [], f"{len(unservable)} non-servable models on simulated Metal, e.g. {unservable[:3]}"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

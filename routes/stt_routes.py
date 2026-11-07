@@ -4,7 +4,11 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 import logging
 
+<<<<<<< HEAD
 from src.upload_limits import read_upload_limited
+=======
+from src.upload_limits import read_upload_limited, STT_MAX_AUDIO_BYTES
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 logger = logging.getLogger(__name__)
 

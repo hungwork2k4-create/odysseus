@@ -1,37 +1,19 @@
-"""
-email_helpers.py
+"""Backward-compat shim — canonical location is routes/email/email_helpers.py.
 
-Lower-level helpers used by both `email_routes.py` (the FastAPI route file)
-and `email_pollers.py` (the background loops):
-
-    - auth dependencies (require_owner / require_user / _assert_owns_account)
-    - account config + settings persistence (`_get_email_config`, `_list_email_accounts`)
-    - IMAP connection helpers (`_imap_connect`, `_imap`, folder detection)
-    - message parsing (`_decode_header`, `_extract_html/text`, attachment helpers)
-    - sender context retrieval for the AI-summary / AI-reply pipelines
-    - Pydantic models, shared constants, scheduled-DB bootstrap
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.email_helpers``, ``from routes.email_helpers import X``,
+``importlib.import_module("routes.email_helpers")`` and the
+``import ... as email_helpers`` + ``monkeypatch.setattr(email_helpers, ...)``
+pattern used across the email tests all operate on the *same* object the
+application actually uses. Source-introspection tests read the canonical file
+by path.
 """
 
-import os
-import imaplib
-import smtplib
-import email as email_mod
-import email.header
-import email.utils
-import json
-import re
-import html
-import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
-import mimetypes
-from pathlib import Path
+import sys as _sys
 
-from fastapi import Query, HTTPException, Request
-from pydantic import BaseModel
-from typing import Optional, List
+from routes.email import email_helpers as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 from src.auth_helpers import _auth_disabled, get_current_user
 from src.secret_storage import decrypt as _decrypt
 
@@ -1388,3 +1370,6 @@ class SendEmailRequest(BaseModel):
 
 class ExtractStyleRequest(BaseModel):
     sample_count: Optional[int] = 20
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

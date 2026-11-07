@@ -8,17 +8,34 @@ The on-disk format is SKILL.md (frontmatter + structured body) under
 """
 
 import logging
-import re
 from typing import List, Optional
+
+import httpx
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from services.memory.skills import SkillsManager
 from src.auth_helpers import get_current_user
+from services.skills import evaluation as _evaluation
+from services.skills import agent_runner as _agent_runner
+from services.skills import audit_workflow as _audit_workflow
+from services.skills import model_selection as _model_selection
+from services.skills import prompts as _prompts
+from services.skills import publication as _publication
+from services.skills import job_coordinator as _job_coordinator
+from services.skills.dependencies import AuditDependencies
+from src.utility_effort import effort_for_call
 from core.middleware import require_admin
 
 logger = logging.getLogger(__name__)
+
+_VERDICT_PROSE_RE = _evaluation._VERDICT_PROSE_RE
+
+_verdict_efficiency = _evaluation.verdict_efficiency
+
+# Compatibility bindings keep existing imports and offline patch targets.
+# Implementations receive current collaborators through _audit_dependencies.
 
 
 class SkillAddRequest(BaseModel):
@@ -51,6 +68,10 @@ class SkillAddRequest(BaseModel):
     steps: List[str] = Field(default_factory=list)
 
 
+class SkillImportUrlRequest(BaseModel):
+    url: str = Field(..., min_length=8, max_length=2000)
+
+
 class SkillUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
@@ -74,6 +95,7 @@ class SkillUpdateRequest(BaseModel):
     steps: Optional[List[str]] = None
 
 
+<<<<<<< HEAD
 def _skill_test_task(skill: dict) -> str:
     """Build a self-contained test task. Many skills act ON something (a doc,
     an email); if we just hand over the 'when to use' text the agent has nothing
@@ -89,218 +111,44 @@ def _skill_test_task(skill: dict) -> str:
         "example yourself. THEN apply the skill fully to that example and show the "
         "result. Context for when this skill is used: " + (ctx or "(general)")
     )
+=======
+_skill_test_task = _prompts._skill_test_task
+
+
+def _skill_baseline_task(skill: dict) -> str:
+    """Compatibility alias using the currently bound shared task builder."""
+    return _skill_test_task(skill)
+
+
+_skill_test_messages = _prompts._skill_test_messages
+
+
+_skill_baseline_messages = _prompts._skill_baseline_messages
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 async def _eval_skill_run(skill_md: str, task: str, transcript: str,
-                          url: str, model: str, headers: Optional[dict]) -> dict:
-    """LLM-as-judge: grade a skill test run from its transcript. Advisory only.
-
-    Robust against local reasoning models (strips <think>, lenient JSON,
-    generous token budget) — same defensive parsing used elsewhere.
-    """
-    import json as _json
-    import re as _re
-    from src.llm_core import llm_call_async
-
-    sys_prompt = (
-        "You are a strict QA reviewer judging whether an AI 'skill' (a reusable "
-        "procedure) actually works. You are given the SKILL, the TASK it was tested "
-        "on, and the TRANSCRIPT of the agent's run.\n\n"
-        "Judge honestly:\n"
-        "- Did following the skill accomplish the task?\n"
-        "- Are the steps clear, correct, and reproducible?\n"
-        "- Did it reference tools/commands that don't exist or that errored?\n"
-        "- Is it too vague or generic to be a useful, reusable skill?\n"
-        "- METADATA: do the frontmatter fields match what the skill actually does? "
-        "Flag wrong/misleading/missing tags, a wrong category, a when_to_use that "
-        "doesn't describe the real trigger, or a description that oversells or "
-        "mismatches the body. List each metadata problem in 'issues' (prefix it "
-        "with 'metadata:'). Metadata problems alone do NOT make the verdict 'fail' "
-        "if the procedure works — note them as issues on an otherwise-passing run.\n\n"
-        "IMPORTANT — fairness rule: if the run could NOT proceed because it lacked "
-        "an input or target the test never provided (e.g. there was no document/"
-        "email/data to act on, so the agent reasonably asked for it), that is NOT "
-        "the skill's fault. Return verdict \"inconclusive\" — do NOT mark it fail "
-        "or needs_work. Only judge the skill's PROCEDURE; reserve fail/needs_work "
-        "for when the steps themselves are wrong, vague, or reference missing tools.\n\n"
-        "If you need to reason, do it inside <think></think> FIRST. Then output "
-        "ONLY this JSON (no fences):\n"
-        '{"verdict": "pass" | "needs_work" | "fail" | "inconclusive", '
-        '"confidence": 0.0-1.0, "summary": "one short sentence", '
-        '"issues": ["short issue", ...]}'
+                          url: str, model: str, headers: Optional[dict],
+                          baseline_transcript: str = "",
+                          skill_stats: Optional[dict] = None,
+                          baseline_stats: Optional[dict] = None,
+                          workload: str = "foreground", owner: Optional[str] = None) -> dict:
+    return await _evaluation.evaluate_run(
+        skill_md, task, transcript, url, model, headers, baseline_transcript,
+        skill_stats, baseline_stats, workload, owner, _effort_for_call=effort_for_call,
     )
-    # Give the judge plenty of transcript, and when it must trim, keep the TAIL
-    # (the final result lives at the end) plus a bit of the head — truncating to
-    # a short prefix made the judge wrongly call complete runs "incomplete /
-    # missing sections" because it never saw the end.
-    def _clip(t: str, limit: int = 24000) -> str:
-        t = (t or "").strip() or "(no output produced)"
-        if len(t) <= limit:
-            return t
-        head = limit // 4
-        return t[:head] + "\n\n…[transcript trimmed for length]…\n\n" + t[-(limit - head):]
-    user_msg = (
-        f"=== SKILL ===\n{(skill_md or '')[:4000]}\n\n"
-        f"=== TASK ===\n{task}\n\n"
-        f"=== TRANSCRIPT ===\n{_clip(transcript)}"
-    )
-    _VERDICTS = ("pass", "needs_work", "fail", "inconclusive")
-
-    def _parse(raw: str):
-        """Return a final result dict on success, or None if unparseable."""
-        text = (raw or '')
-        # Strip closed think blocks. If a <think> was opened but never closed
-        # (the model ran out of budget mid-reasoning), drop everything from it
-        # onward so its stray braces don't poison JSON extraction.
-        text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', text, flags=_re.I)
-        text = _re.sub(r'<think(?:ing)?>[\s\S]*$', '', text, flags=_re.I).strip()
-
-        def _coerce(d):
-            return d if (isinstance(d, dict) and "verdict" in d) else None
-
-        data = None
-        # Scan every balanced {...} candidate and keep the LAST one that parses
-        # and carries a "verdict" — the transcript is full of JSON API bodies,
-        # so a naive first-brace/last-brace span almost never parses.
-        for m in _re.finditer(r'\{[\s\S]*?\}', text):
-            frag = m.group(0)
-            for cand in (frag, _re.sub(r',(\s*[}\]])', r'\1', frag)):
-                try:
-                    d = _coerce(_json.loads(cand))
-                except Exception:
-                    d = None
-                if d is not None:
-                    data = d
-        # Fallback to the greedy outermost span (handles nested objects the
-        # non-greedy scan above splits apart).
-        if data is None:
-            a, b = text.find('{'), text.rfind('}')
-            if a >= 0 and b > a:
-                frag = text[a:b + 1]
-                for cand in (frag, _re.sub(r',(\s*[}\]])', r'\1', frag)):
-                    try:
-                        d = _coerce(_json.loads(cand))
-                    except Exception:
-                        d = None
-                    if d is not None:
-                        data = d
-                        break
-
-        v = str(data.get("verdict", "")).lower().strip() if isinstance(data, dict) else None
-        # Last resort: pull the verdict keyword straight out of the prose so a
-        # clearly-decided run isn't thrown away as "unparseable".
-        if v not in _VERDICTS:
-            km = _re.search(r'verdict["\'\s:]*\s*["\']?(pass|needs_work|fail|inconclusive)', text, _re.I)
-            if km:
-                v = km.group(1).lower()
-                if data is None:
-                    data = {}
-        if not isinstance(data, dict) or v not in _VERDICTS:
-            return None
-        try:
-            conf = float(data.get("confidence", 0))
-        except (TypeError, ValueError):
-            conf = 0
-        return {
-            "verdict": v,
-            "confidence": max(0.0, min(1.0, conf)),
-            "summary": str(data.get("summary", ""))[:400],
-            "issues": [str(x)[:200] for x in (data.get("issues") or []) if str(x).strip()][:8],
-        }
-
-    # Two attempts: the first lets the judge reason; if a heavy reasoning model
-    # burns its budget inside <think> and never emits the JSON, the second
-    # forbids thinking and demands the JSON immediately.
-    last_text = ""
-    last_err = None
-    for attempt in range(2):
-        msgs = [{"role": "system", "content": sys_prompt},
-                {"role": "user", "content": user_msg}]
-        if attempt == 1:
-            msgs[0]["content"] = (
-                sys_prompt + "\n\nDO NOT use <think> or any reasoning. Your reply "
-                "must START with '{' and be ONLY the JSON object, nothing else."
-            )
-        try:
-            raw = await llm_call_async(
-                # Generous budget so a heavy reasoner can think AND still have
-                # room to emit the JSON afterwards (reasoning tokens come out of
-                # this same cap; the server clamps to its own max).
-                url, model, msgs,
-                temperature=0.1, max_tokens=32768, headers=headers, timeout=180,
-            )
-        except Exception as e:
-            # Don't give up on a transient first-attempt error — let the second
-            # (no-think) attempt run before reporting failure.
-            last_err = e
-            continue
-        last_text = (raw or '')
-        parsed = _parse(raw)
-        if parsed is not None:
-            return parsed
-
-    if last_err is not None and not last_text:
-        return {"verdict": "unknown", "confidence": 0, "summary": f"Evaluator call failed: {last_err}", "issues": []}
-    return {"verdict": "unknown", "confidence": 0,
-            "summary": "Evaluator returned unparseable output.", "issues": [], "raw": last_text[:300]}
 
 
 async def _eval_skill_necessity(skill_md: str, others: list, url: str, model: str,
-                                headers: Optional[dict]) -> Optional[dict]:
-    """Advisory judge: is this skill worth keeping, or is it redundant / trivially
-    unnecessary? Sees the OTHER skills' names+descriptions so it can spot
-    duplicates. Returns {necessary, redundant_with, reason} or None. Never acts —
-    purely a flag the UI surfaces."""
-    import json as _json
-    import re as _re
-    from src.llm_core import llm_call_async
-
-    catalog = "\n".join(f"- {o.get('name')}: {o.get('description', '')}" for o in others) or "(no other skills)"
-    sys_prompt = (
-        "You assess whether a reusable AI 'skill' (a saved procedure) is worth keeping. "
-        "A skill is UNNECESSARY if it essentially duplicates another skill in the library, "
-        "OR if it's so trivial/generic that a capable assistant would do it correctly with no "
-        "saved procedure at all. A skill IS necessary if it captures a specific, non-obvious "
-        "procedure, tool sequence, or hard-won detail.\n\n"
-        "Be conservative: only call it unnecessary when you're confident. Reason in "
-        "<think></think> first if needed, then output ONLY this JSON:\n"
-        '{"necessary": true|false, "redundant_with": ["skill-name", ...], '
-        '"reason": "one short sentence"}'
+                                headers: Optional[dict],
+                                workload: str = "foreground", owner: Optional[str] = None) -> Optional[dict]:
+    return await _evaluation.evaluate_necessity(
+        skill_md, others, url, model, headers, workload, owner,
+        _effort_for_call=effort_for_call,
     )
-    user_msg = (
-        f"=== SKILL UNDER REVIEW ===\n{(skill_md or '')[:3000]}\n\n"
-        f"=== OTHER SKILLS IN THE LIBRARY ===\n{catalog[:4000]}"
-    )
-    try:
-        raw = await llm_call_async(
-            url, model,
-            [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_msg}],
-            temperature=0.1, max_tokens=8192, headers=headers, timeout=120,
-        )
-    except Exception as e:
-        logger.warning(f"Necessity check failed: {e}")
-        return None
-    text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', (raw or ''), flags=_re.I)
-    text = _re.sub(r'<think(?:ing)?>[\s\S]*$', '', text, flags=_re.I).strip()
-    data = None
-    a, b = text.find('{'), text.rfind('}')
-    if a >= 0 and b > a:
-        frag = text[a:b + 1]
-        for cand in (frag, _re.sub(r',(\s*[}\]])', r'\1', frag)):
-            try:
-                data = _json.loads(cand)
-                break
-            except Exception:
-                continue
-    if not isinstance(data, dict) or "necessary" not in data:
-        return None
-    return {
-        "necessary": bool(data.get("necessary", True)),
-        "redundant_with": [str(x)[:80] for x in (data.get("redundant_with") or []) if str(x).strip()][:6],
-        "reason": str(data.get("reason", ""))[:200],
-    }
 
 
+<<<<<<< HEAD
 def _should_check_retrieval_precision(skill: dict) -> bool:
     """Cheap prefilter for the expensive retrieval-precision judge.
 
@@ -323,78 +171,28 @@ def _should_check_retrieval_precision(skill: dict) -> bool:
         str(skill.get("when_to_use") or ""),
     ]).lower()
     return sum(1 for t in broad if t in text) >= 2
+=======
+_should_check_retrieval_precision = _evaluation.should_check_retrieval_precision
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 async def _eval_skill_retrieval_precision(skill_md: str, others: list,
                                           url: str, model: str,
-                                          headers: Optional[dict]) -> Optional[dict]:
-    """Advisory judge: would this skill's metadata make retrieval over-select it?
-
-    This is distinct from "does the procedure work?". It asks whether tags,
-    description, and when_to_use are specific enough that the skill won't be
-    injected into adjacent but wrong tasks.
-    """
-    import json as _json
-    import re as _re
-    from src.llm_core import llm_call_async
-
-    catalog = "\n".join(f"- {o.get('name')}: {o.get('description', '')}" for o in others[:80]) or "(no other skills)"
-    sys_prompt = (
-        "You are auditing retrieval metadata for a reusable AI skill. The app selects "
-        "skills by matching user requests against the skill name, description, tags, "
-        "when_to_use, and procedure text. Judge whether this skill is likely to be "
-        "over-selected for nearby but wrong requests.\n\n"
-        "Focus ONLY on metadata/retrieval precision, not whether the procedure works. "
-        "Flag broad tags such as network, installation, system, document, search, ssh, "
-        "python, gpu, or server when they would cause this narrow skill to match too "
-        "many adjacent tasks. Recommend narrower tags/when_to_use wording. Compare "
-        "against the other skills to spot boundaries.\n\n"
-        "Return ok=true only when the trigger metadata is narrow enough. If not ok, "
-        "issues MUST start with 'metadata: retrieval:' and be actionable. Output ONLY JSON:\n"
-        '{"ok": true|false, "summary": "one short sentence", "issues": ["metadata: retrieval: ..."]}'
+                                          headers: Optional[dict],
+                                          workload: str = "foreground", owner: Optional[str] = None) -> Optional[dict]:
+    return await _evaluation.evaluate_retrieval_precision(
+        skill_md, others, url, model, headers, workload, owner,
+        _effort_for_call=effort_for_call,
     )
-    user_msg = (
-        f"=== SKILL UNDER REVIEW ===\n{(skill_md or '')[:5000]}\n\n"
-        f"=== OTHER SKILLS IN LIBRARY ===\n{catalog[:5000]}\n\n"
-        "Decide if this skill's retrieval metadata should be narrowed so it only "
-        "fires for its intended scenario and not for adjacent skills above."
-    )
-    try:
-        raw = await llm_call_async(
-            url, model,
-            [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_msg}],
-            temperature=0.1, max_tokens=4096, headers=headers, timeout=90,
-        )
-    except Exception as e:
-        logger.warning(f"Retrieval precision check failed: {e}")
-        return None
-    text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', (raw or ''), flags=_re.I)
-    text = _re.sub(r'<think(?:ing)?>[\s\S]*$', '', text, flags=_re.I).strip()
-    data = None
-    a, b = text.find('{'), text.rfind('}')
-    if a >= 0 and b > a:
-        frag = text[a:b + 1]
-        for cand in (frag, _re.sub(r',(\s*[}\]])', r'\1', frag)):
-            try:
-                data = _json.loads(cand)
-                break
-            except Exception:
-                continue
-    if not isinstance(data, dict) or "ok" not in data:
-        return None
-    return {
-        "ok": bool(data.get("ok")),
-        "summary": str(data.get("summary", ""))[:300],
-        "issues": [str(x)[:220] for x in (data.get("issues") or []) if str(x).strip()][:6],
-    }
 
 
 # In-memory skill-test jobs, keyed by (owner, skill_name). Runs server-side so
 # the test survives the modal being closed; the UI polls /test-status. (Not
 # persisted across restart — it's a "come back in a bit" convenience.)
-_skill_test_jobs: dict = {}
+_skill_test_jobs = _agent_runner._skill_test_jobs
 
 
+<<<<<<< HEAD
 async def _run_skill_test_job(key, name, md, task, url, model, headers, owner, skills_manager=None):
     """Background coroutine: run the skill in an agent loop, capture a condensed
     log + transcript, then have the judge grade it. Writes into _skill_test_jobs."""
@@ -477,32 +275,39 @@ async def _run_skill_test_job(key, name, md, task, url, model, headers, owner, s
             except Exception:
                 pass
     job["status"] = "done"
+=======
+async def _run_skill_test_job(
+    key,
+    name,
+    md,
+    task,
+    url,
+    model,
+    headers,
+    owner,
+    skills_manager=None,
+    *,
+    messages=None,
+    transcript=None,
+    exact_approval=None,
+    request_authority=None,
+):
+    return await _agent_runner.run_test_job(
+        key, name, md, task, url, model, headers, owner, skills_manager,
+        messages=messages, transcript=transcript, exact_approval=exact_approval,
+        request_authority=request_authority, deps=_audit_dependencies(),
+    )
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 # ── Autonomous skill audit: test → judge → self-edit → retry → teacher → flag ──
-_skill_audit_jobs: dict = {}
+_skill_audit_jobs = _audit_workflow._skill_audit_jobs
 
 
-def _audit_auto_publish_policy(owner) -> tuple[bool, float]:
-    """Return (auto_publish_enabled, minimum_confidence) for audit finalization."""
-    try:
-        from routes.prefs_routes import _load_for_user
-        prefs = _load_for_user(owner) or {}
-    except Exception:
-        prefs = {}
-    try:
-        from src.settings import get_setting
-        default_min = get_setting("skill_autosave_min_confidence", 0.85)
-    except Exception:
-        default_min = 0.85
-    enabled = bool(prefs.get("auto_approve_skills", True))
-    try:
-        min_conf = float(prefs.get("skill_min_confidence", default_min))
-    except (TypeError, ValueError):
-        min_conf = 0.85
-    return enabled, max(0.0, min(1.0, min_conf))
+_audit_auto_publish_policy = _publication.auto_publish_policy
 
 
+<<<<<<< HEAD
 def _skill_duplicate_blocker(skills_manager, name: str, owner) -> Optional[str]:
     """Cheap duplicate guard matching the UI's duplicate grouping.
 
@@ -573,51 +378,27 @@ def _skill_duplicate_blocker(skills_manager, name: str, owner) -> Optional[str]:
             pass
         return keeper_name
     return None
+=======
+_skill_duplicate_blocker = _publication.duplicate_blocker
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
-def _audit_flag_text(*parts) -> str:
-    text_parts = []
-    for part in parts:
-        if isinstance(part, dict):
-            text_parts.extend(str(v or "") for v in part.values())
-        elif isinstance(part, (list, tuple, set)):
-            text_parts.extend(str(v or "") for v in part)
-        else:
-            text_parts.append(str(part or ""))
-    return " ".join(text_parts).lower()
-
-
-def _audit_generic_blocker(skill: Optional[dict], necessity: Optional[dict],
-                           verdict_data: Optional[dict]) -> Optional[str]:
-    """Return a short reason when a generic/trivial skill must stay draft."""
-    generic_re = re.compile(
-        r"\b(too[-\s]?generic|generic|trivial|capable assistant|without a saved|"
-        r"not need|unnecessary|irrelevant)\b",
-        re.I,
+def _finalize_audit_batch(skills_manager, results: list[dict], owner, log) -> None:
+    return _publication.finalize_batch(
+        skills_manager, results, owner, log, deps=_audit_dependencies(),
     )
-    if isinstance(necessity, dict):
-        reason = str(necessity.get("reason") or "")
-        if necessity.get("necessary") is False and generic_re.search(reason):
-            return reason or "Generic or unnecessary skill"
 
-    if isinstance(skill, dict):
-        tag_text = _audit_flag_text(skill.get("tags") or [])
-        if generic_re.search(tag_text):
-            return "Skill is tagged generic"
 
-    if isinstance(verdict_data, dict):
-        verdict_text = _audit_flag_text(
-            verdict_data.get("summary"),
-            verdict_data.get("issues") or [],
-        )
-        if generic_re.search(verdict_text):
-            return "Audit flagged the skill as generic or unnecessary"
-    return None
+_audit_flag_text = _publication.audit_flag_text
+
+
+_audit_utility_blocker = _publication.utility_blocker
 
 
 def _audit_finalize_status(skills_manager, name: str, owner, verdict: str,
                            confidence: Optional[float], necessity: Optional[dict] = None,
                            verdict_data: Optional[dict] = None) -> str:
+<<<<<<< HEAD
     """Apply the user's audit publishing policy.
 
     Audit is the final pass: skills that pass at/above the threshold are
@@ -727,35 +508,42 @@ async def _improve_skill_md(skill_md: str, verdict: dict, transcript: str, url, 
         "valid frontmatter structure. Do NOT invent capabilities the agent lacks. Reason in "
         "<think></think> first if needed, then output ONLY the full corrected SKILL.md (no "
         "fences, no commentary)."
+=======
+    return _publication.finalize_status(
+        skills_manager, name, owner, verdict, confidence, necessity, verdict_data,
+        deps=_audit_dependencies(),
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     )
-    user_msg = (
-        f"=== CURRENT SKILL.md ===\n{skill_md}\n\n"
-        f"=== REVIEWER VERDICT ===\n{verdict.get('summary', '')}\nIssues:\n{issues}\n\n"
-        f"=== TEST TRANSCRIPT ===\n{(transcript or '')[:6000]}"
+
+
+_apply_skill_md = _publication.apply_markdown
+
+
+SkillAuditUnavailable = _agent_runner.SkillAuditUnavailable
+
+
+async def _run_skill_audit_arm(messages: list[dict], url, model, headers, owner,
+                               workload: str = "foreground") -> tuple[str, dict, Optional[dict]]:
+    return await _agent_runner.run_audit_arm(messages, url, model, headers, owner, workload)
+
+
+async def _run_skill_test_once(md: str, task: str, url, model, headers, owner,
+                               workload: str = "foreground") -> tuple:
+    return await _agent_runner.run_test_once(
+        md, task, url, model, headers, owner, workload, deps=_audit_dependencies(),
     )
-    try:
-        raw = await llm_call_async(url, model,
-                                   [{"role": "system", "content": sys_prompt},
-                                    {"role": "user", "content": user_msg}],
-                                   temperature=0.2, max_tokens=16384, headers=headers, timeout=180)
-    except Exception as e:
-        logger.warning(f"Audit: improve call failed: {e}")
-        return None
-    text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', (raw or ''), flags=_re.I)
-    text = _re.sub(r'<think(?:ing)?>[\s\S]*$', '', text, flags=_re.I)
-    text = _re.sub(r'</think(?:ing)?>', '', text, flags=_re.I).strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-    # Some reasoning models still prepend analysis or echo the old skill before
-    # the final corrected document. Keep only the last complete-looking
-    # frontmatter document so reviewer prose never gets persisted into SKILL.md.
-    starts = list(_re.finditer(r'(?m)^---\s*\n(?=[\s\S]*?^name\s*:)', text))
-    if starts:
-        text = text[starts[-1].start():].strip()
-    return text or None
+
+
+async def _improve_skill_md(skill_md: str, verdict: dict, transcript: str, url, model, headers,
+                            workload: str = "foreground", owner: Optional[str] = None):
+    return await _evaluation.improve_markdown(
+        skill_md, verdict, transcript, url, model, headers, workload, owner,
+        _effort_for_call=effort_for_call,
+    )
 
 
 async def _audit_one_skill(skills_manager, skill, url, model, headers,
+<<<<<<< HEAD
                            teacher, owner, log) -> dict:
     """Test → judge → self-edit+retry → (teacher edit+retry) → flag. Never deletes;
     a skill the teacher still can't fix is demoted to draft for manual review.
@@ -917,74 +705,24 @@ async def _audit_one_skill(skills_manager, skill, url, model, headers,
         worker_model=model,
         teacher_model=(teacher[1] if teacher_ran and teacher else ""),
         owner=owner,
+=======
+                           teacher, owner, log, workload: str = "foreground") -> dict:
+    return await _audit_workflow.audit_one_skill(
+        skills_manager, skill, url, model, headers, teacher, owner, log, workload,
+        deps=_audit_dependencies(),
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     )
-    log(f"{name}: flagged — confidence lowered, kept as draft for manual review")
-    return {"skill": name, "result": "flagged", "verdict": verdict, "confidence": 0.35}
 
 
-async def _run_audit_all_job(key, skills_manager, names, url, model, headers, teacher, owner):
-    """Background: audit each named skill in sequence, recording progress."""
-    import asyncio as _asyncio
-    import time as _time
-
-    job = _skill_audit_jobs.get(key)
-    if job is None:
-        return
-
-    def log(msg):
-        job["log"].append(msg)
-        if len(job["log"]) > 1000:
-            del job["log"][0:len(job["log"]) - 1000]
-
-    cancelled = False
-    try:
-        for nm in names:
-            if job.get("cancel"):
-                cancelled = True
-                log("(cancelled)")
-                break
-            job["current"] = nm
-            skills = skills_manager.load(owner=owner)
-            sk = next((s for s in skills if s.get("name") == nm), None)
-            if not sk:
-                continue
-            try:
-                res = await _audit_one_skill(skills_manager, sk, url, model, headers, teacher, owner, log)
-            except _asyncio.CancelledError:
-                cancelled = True
-                job["cancel"] = True
-                log("(cancelled)")
-                raise
-            except Exception as e:
-                log(f"{nm}: error — {e}")
-                res = {"skill": nm, "result": "error"}
-            try:
-                refreshed = next((s for s in skills_manager.load(owner=owner) if s.get("name") == nm), None)
-                if refreshed:
-                    res["skill_state"] = {
-                        "name": refreshed.get("name"),
-                        "status": refreshed.get("status"),
-                        "confidence": refreshed.get("confidence"),
-                        "audit_verdict": refreshed.get("audit_verdict"),
-                        "audit_by_teacher": refreshed.get("audit_by_teacher"),
-                        "audit_worker_model": refreshed.get("audit_worker_model"),
-                        "audit_teacher_model": refreshed.get("audit_teacher_model"),
-                        "audited_at": refreshed.get("audited_at"),
-                        "necessity": refreshed.get("necessity"),
-                    }
-            except Exception:
-                pass
-            job["results"].append(res)
-            job["done"] = len(job["results"])
-    except _asyncio.CancelledError:
-        cancelled = True
-    finally:
-        job["current"] = None
-        job["status"] = "cancelled" if cancelled or job.get("cancel") else "done"
-        job["finished"] = _time.time()
-        job.pop("task", None)
+async def _run_audit_all_job(key, skills_manager, names, url, model, headers, teacher, owner,
+                             workload: str = "foreground"):
+    return await _audit_workflow.run_audit_batch(
+        key, skills_manager, names, url, model, headers, teacher, owner, workload,
+        deps=_audit_dependencies(),
+    )
 
 
+<<<<<<< HEAD
 def _resolve_audit_models(owner=None):
     """Resolve (url, model, headers, teacher) for an audit run from Settings.
 
@@ -1020,23 +758,21 @@ def _resolve_audit_models(owner=None):
     except Exception as e:
         logger.warning(f"Audit teacher resolve failed: {e}")
     return url, model, headers, teacher
+=======
+def _resolve_audit_models(owner=None, model_spec=None, endpoint_url=None):
+    return _model_selection.resolve_audit_models(owner, model_spec, endpoint_url)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 async def run_scheduled_skill_audit(skills_manager: SkillsManager,
                                     owner: Optional[str] = None,
                                     max_skills: int = 8) -> dict:
-    """Nightly audit pass. Audits the LEAST-recently-audited skills first and
-    caps the batch so it rotates through the library over successive nights
-    instead of re-checking the same ones every run. Reuses the same job store
-    the manual 'Audit all' button uses, so its progress shows in the UI too."""
-    import time as _time
+    return await _audit_workflow.run_scheduled_skill_audit(
+        skills_manager, owner, max_skills, deps=_audit_dependencies(),
+    )
 
-    key = (owner or "",)
-    existing = _skill_audit_jobs.get(key)
-    if existing and existing.get("status") == "running":
-        logger.info("Scheduled skill audit skipped — a run is already active.")
-        return {"status": "running", "skipped": True}
 
+<<<<<<< HEAD
     try:
         url, model, headers, teacher = _resolve_audit_models(owner=owner)
     except ValueError as e:
@@ -1063,6 +799,35 @@ async def run_scheduled_skill_audit(skills_manager: SkillsManager,
     await _run_audit_all_job(key, skills_manager, names, url, model, headers, teacher, owner)
     job = _skill_audit_jobs.get(key, {})
     return {"status": "done", "total": len(names), "results": job.get("results", [])}
+=======
+def _audit_dependencies() -> AuditDependencies:
+    """Bind current compatibility symbols without shared mutable rebinding."""
+    return AuditDependencies(
+        test_jobs=_skill_test_jobs,
+        audit_jobs=_skill_audit_jobs,
+        test_task=_skill_test_task,
+        test_messages=_skill_test_messages,
+        baseline_messages=_skill_baseline_messages,
+        evaluate_run=_eval_skill_run,
+        evaluate_necessity=_eval_skill_necessity,
+        evaluate_retrieval_precision=_eval_skill_retrieval_precision,
+        should_check_retrieval_precision=_should_check_retrieval_precision,
+        improve_markdown=_improve_skill_md,
+        apply_markdown=_apply_skill_md,
+        duplicate_blocker=_skill_duplicate_blocker,
+        finalize_status=_audit_finalize_status,
+        finalize_batch=_finalize_audit_batch,
+        auto_publish_policy=_audit_auto_publish_policy,
+        utility_blocker=_audit_utility_blocker,
+        verdict_efficiency=_verdict_efficiency,
+        run_test_job=_run_skill_test_job,
+        run_arm=_run_skill_audit_arm,
+        run_test_once=_run_skill_test_once,
+        audit_one=_audit_one_skill,
+        run_batch=_run_audit_all_job,
+        resolve_models=_resolve_audit_models,
+    )
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
@@ -1078,7 +843,9 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         # let any user mutate/read a skill that happened to have no owner
         # field (legacy or un-stamped writes), since the truthiness guard
         # short-circuited the comparison. Treat missing owner as not-owned.
-        if skill.get("owner") != user:
+        if skill.get("owner") != user and not (
+            skill.get("source") == "builtin" and not skill.get("owner")
+        ):
             raise HTTPException(404, "Skill not found")
 
     def _fire_skill_added(user: Optional[str]):
@@ -1102,6 +869,35 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         user = _owner(request)
         idx = skills_manager.index_for(owner=user)
         return {"index": idx, "count": len(idx)}
+
+    @router.get("/slash-catalog")
+    async def get_slash_catalog(request: Request):
+        """Return skills that are available as slash commands.
+
+        Mirrors the agent prompt's published-skill index so the UI never offers
+        a slash command the model would not normally be allowed to discover.
+        """
+        user = _owner(request)
+        all_skills = {s.get("name"): s for s in skills_manager.load(owner=user)}
+        entries = []
+        for s in skills_manager.index_for(owner=user):
+            name = (s.get("name") or "").strip()
+            if not name:
+                continue
+            full = all_skills.get(name) or {}
+            category = (s.get("category") or full.get("category") or "general").strip() or "general"
+            entries.append({
+                "type": "skill",
+                "token": f"/{name}",
+                "name": name,
+                "category": f"Skills / {category}",
+                "help": s.get("description") or full.get("description") or "",
+                "usage": f"/{name} <request>",
+                "uses": int(full.get("uses") or 0),
+                "last_used": full.get("last_used"),
+            })
+        entries.sort(key=lambda row: row["name"])
+        return {"skills": entries, "count": len(entries)}
 
     @router.get("/builtin")
     async def list_builtin_skills(request: Request):
@@ -1203,6 +999,36 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
             save_settings(settings)
         return {"ok": True, "name": name, "is_overridden": False}
 
+    @router.post("/import-from-url")
+    async def import_skill_from_url(request: Request, body: SkillImportUrlRequest):
+        """Install a SKILL.md bundle from a public GitHub URL (skills.sh links supported)."""
+        require_admin(request)
+        user = _owner(request)
+        from services.memory.skill_importer import (
+            SkillImportError,
+            fetch_skill_bundle,
+        )
+
+        try:
+            files, _src = fetch_skill_bundle(body.url.strip())
+            entry = skills_manager.import_bundle_from_files(
+                files,
+                owner=user,
+                source_url=body.url.strip(),
+            )
+        except SkillImportError as e:
+            raise HTTPException(400, str(e)) from e
+        except httpx.HTTPError as e:
+            logger.warning("skill import fetch failed: %s", e)
+            detail = str(e).strip() or "Could not download skill from URL"
+            raise HTTPException(502, detail) from e
+        except Exception as e:
+            logger.error("skill import failed: %s", e)
+            raise HTTPException(500, "Skill import failed") from e
+
+        _fire_skill_added(user)
+        return {"ok": True, "skill": entry, "files": len(files)}
+
     @router.post("/add")
     async def add_skill(request: Request, body: SkillAddRequest):
         user = _owner(request)
@@ -1236,6 +1062,47 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
             _fire_skill_added(user)
         return {"ok": True, "deduped": bool(entry.get("_deduped")), "skill": entry}
 
+    @router.post("/{skill_id}/invoke")
+    async def invoke_skill(request: Request, skill_id: str):
+        """Build a skill-pinned prompt for slash-command invocation.
+
+        This is intentionally server-side so availability, ownership, and usage
+        accounting use the same rules as the SkillsManager.
+        """
+        user = _owner(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        request_text = (body.get("request") or "").strip() if isinstance(body, dict) else ""
+
+        invokable = {
+            s.get("name"): s for s in skills_manager.index_for(owner=user)
+            if (s.get("name") or "").strip()
+        }
+        match = invokable.get(skill_id)
+        if not match:
+            raise HTTPException(404, "Skill is not available for slash invocation")
+
+        name = match.get("name")
+        md = skills_manager.read_skill_md(name, owner=user)
+        if md is None:
+            raise HTTPException(404, "Skill source unavailable")
+
+        skills_manager.record_use(name, owner=user)
+        message = (
+            "Apply the skill below to my request, following its Procedure / Pitfalls / Verification.\n\n"
+            f"--- BEGIN SKILL ---\n{md}\n--- END SKILL ---\n\n"
+            + (f"Request: {request_text}" if request_text else "Request: (use the skill as appropriate)")
+        )
+        return {
+            "ok": True,
+            "type": "skill",
+            "name": name,
+            "command": f"/{name}",
+            "message": message,
+        }
+
     @router.get("/{skill_id}")
     async def get_skill(request: Request, skill_id: str):
         user = _owner(request)
@@ -1255,10 +1122,18 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         if not match:
             raise HTTPException(404, "Skill not found")
         _verify_owner(match, user)
+<<<<<<< HEAD
         md = skills_manager.read_skill_md(match.get("name"), owner=user)
+=======
+        # Some legacy records are identified by ``id`` but do not carry a
+        # separate name. Use the same resolved identifier that the list route
+        # exposes so those records remain previewable.
+        skill_name = match.get("name") or match.get("id")
+        md = skills_manager.read_skill_md(skill_name, owner=user)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         if md is None:
             raise HTTPException(404, "Skill source unavailable (legacy entry?)")
-        return {"name": match.get("name"), "markdown": md}
+        return {"name": skill_name, "markdown": md}
 
     @router.post("/{skill_id}/test")
     async def test_skill(request: Request, skill_id: str):
@@ -1268,13 +1143,18 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         On completion it records the verdict and nudges the skill's confidence
         to match (pass→0.95, needs_work→0.6, fail→0.4; inconclusive/unknown leave
         it untouched). It never changes the skill's published/draft STATUS."""
-        import time as _time
-        import asyncio as _asyncio
-        from src.endpoint_resolver import resolve_endpoint
+        from core.database import SessionLocal
+        from src.endpoint_resolver import (
+            build_chat_url, build_headers, resolve_endpoint,
+            resolve_endpoint_runtime, resolve_owner_registered_endpoint,
+        )
 
         user = _owner(request)
         body = await request.json()
         task = (body.get("task") or "").strip()
+        from src.agent_runtime.authority import RequestAuthority, request_authority_for_http
+        request_authority = (request_authority_for_http(request, task, owner=user)
+                             if task else RequestAuthority.empty(owner=user))
 
         skills = skills_manager.load(owner=user)
         match = next((s for s in skills if s.get("name") == skill_id or s.get("id") == skill_id), None)
@@ -1289,12 +1169,24 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
 
         # Prefer the configured DEFAULT (→ Utility) model — not the current chat
         # session's model. Fall back to the caller's session model only if unset.
+<<<<<<< HEAD
         url, model, headers = resolve_endpoint("default", owner=user)
+=======
+        url, model, headers = resolve_endpoint("utility", owner=user)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         if not url or not model:
-            url = url or ((body.get("endpoint_url") or "").strip() or None)
+            if not url and body.get("endpoint_url") is not None:
+                db = SessionLocal()
+                try:
+                    endpoint = resolve_owner_registered_endpoint(db, body["endpoint_url"], user)
+                    base, api_key = resolve_endpoint_runtime(endpoint, owner=user)
+                    url = build_chat_url(base)
+                    headers = build_headers(api_key, base)
+                except ValueError as exc:
+                    raise HTTPException(400, str(exc)) from exc
+                finally:
+                    db.close()
             model = model or ((body.get("model") or "").strip() or None)
-            if headers is None and isinstance(body.get("headers"), dict):
-                headers = body.get("headers")
         if not url or not model:
             raise HTTPException(400, "No model configured — set a Default or Utility model in Settings.")
 
@@ -1310,18 +1202,68 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         except Exception as _e:
             logger.warning(f"Skill-test model resolve failed: {_e}")
 
+        return _job_coordinator.start_test_job(
+            name, md, task, url, model, headers, user, skills_manager,
+            request_authority, deps=_audit_dependencies(),
+        )
+
+    @router.post("/{skill_id}/test-approval")
+    async def approve_skill_test_action(request: Request, skill_id: str):
+        """Resume a manual skill test with one exact server-sealed action."""
+        from src.tool_approvals import tool_approval_store
+        from src.agent_runtime.authority import require_user_approval_request
+        require_user_approval_request(request)
+
+        user = _owner(request)
+        skills = skills_manager.load(owner=user)
+        match = next(
+            (s for s in skills if s.get("name") == skill_id or s.get("id") == skill_id),
+            None,
+        )
+        if not match:
+            raise HTTPException(404, "Skill not found")
+        _verify_owner(match, user)
+        name = match.get("name")
         key = (user or "", name)
-        _skill_test_jobs[key] = {
-            "status": "running",
-            "task": task,
-            "model": model,
-            "skill": name,
-            "started": _time.time(),
-            "log": [{"type": "skill_test_start", "task": task, "skill": name, "model": model}],
-            "verdict": None,
-        }
-        _asyncio.create_task(_run_skill_test_job(key, name, md, task, url, model, headers, user, skills_manager))
-        return {"ok": True, "status": "running", "skill": name, "model": model}
+        job = _skill_test_jobs.get(key)
+        if not job or job.get("status") != "awaiting_approval":
+            raise HTTPException(409, "This skill test is not awaiting an approval.")
+
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise HTTPException(400, "Tool approval body must be a JSON object.")
+        approval_id = str(body.get("approval_id") or "")
+        decision = str(body.get("decision") or "").strip().lower()
+        expected = job.get("approval") or {}
+        if approval_id != str(expected.get("approval_id") or ""):
+            raise HTTPException(409, "This approval does not match the pending skill test action.")
+        if decision not in {"approve", "deny"}:
+            raise HTTPException(400, "Invalid tool approval decision.")
+
+        pending = tool_approval_store.peek(approval_id)
+        normalized_owner = str(user or "").strip().casefold()
+        if (
+            pending is None
+            or pending.owner != normalized_owner
+            or pending.session_id != ""
+        ):
+            raise HTTPException(409, "This tool approval is invalid or expired.")
+        exact_approval = tool_approval_store.consume(
+            approval_id,
+            decision=decision,
+            owner=user,
+            session_id=None,
+            # The button here says "Allow once" and there is no chat to carry a
+            # scope into, so the gate must re-arm behind the sealed action.
+            allow_continuation=False,
+        )
+
+        if decision == "approve" and exact_approval is None:
+            raise HTTPException(409, "This tool approval could not be consumed.")
+        return _job_coordinator.continue_test_job(
+            job, key, name, decision, expected, exact_approval,
+            skills_manager, deps=_audit_dependencies(),
+        )
 
     @router.get("/{skill_id}/test-status")
     async def test_skill_status(request: Request, skill_id: str):
@@ -1330,16 +1272,7 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         skills = skills_manager.load(owner=user)
         match = next((s for s in skills if s.get("name") == skill_id or s.get("id") == skill_id), None)
         name = (match or {}).get("name", skill_id)
-        job = _skill_test_jobs.get((user or "", name))
-        if not job:
-            return {"status": "none"}
-        return {
-            "status": job["status"],
-            "task": job.get("task"),
-            "model": job.get("model"),
-            "log": job.get("log", []),
-            "verdict": job.get("verdict"),
-        }
+        return _job_coordinator.test_status(user, name, deps=_audit_dependencies())
 
     @router.post("/audit-all")
     async def audit_all_skills(request: Request):
@@ -1350,14 +1283,13 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         {scope: 'drafts'|'unchecked'|'all', names?: [...], skip_audited?: bool}. Default 'all'
         means every visible skill, including already-published skills, so audit
         can publish or demote according to the confidence threshold."""
-        import asyncio as _asyncio
-        import time as _time
 
         user = _owner(request)
         body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
         scope = (body.get("scope") or "all").lower()
         requested_names = body.get("names")
         skip_audited = bool(body.get("skip_audited"))
+        requested_model = str(body.get("model") or "").strip() or None
 
         key = (user or "",)
         existing = _skill_audit_jobs.get(key)
@@ -1369,79 +1301,31 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
 
         # Worker model (Default, normalized) + optional teacher — shared resolver.
         try:
+<<<<<<< HEAD
             url, model, headers, teacher = _resolve_audit_models(owner=user)
+=======
+            url, model, headers, teacher = _resolve_audit_models(owner=user, model_spec=requested_model)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         except ValueError as e:
             raise HTTPException(400, str(e))
 
-        skills = skills_manager.load(owner=user)
-        by_name = {s.get("name"): s for s in skills if s.get("name")}
-        if isinstance(requested_names, list):
-            names = []
-            seen = set()
-            for raw in requested_names:
-                nm = str(raw or "").strip()
-                if not nm or nm in seen or nm not in by_name:
-                    continue
-                if scope not in ("all", "selected") and (by_name[nm].get("status") or "draft") == "published":
-                    continue
-                if skip_audited and by_name[nm].get("audit_verdict"):
-                    continue
-                names.append(nm)
-                seen.add(nm)
-            scope = "selected" if requested_names else scope
-        elif scope == "all":
-            names = [
-                s.get("name") for s in skills
-                if s.get("name") and (not skip_audited or not s.get("audit_verdict"))
-            ]
-        else:
-            scope = "unchecked" if scope == "drafts" else scope
-            names = [
-                s.get("name") for s in skills
-                if s.get("name")
-                and (s.get("status") or "draft") != "published"
-                and not s.get("audit_verdict")
-            ]
-        if not names:
-            return {"ok": True, "status": "done", "total": 0, "results": [], "log": ["No skills to audit."]}
-
-        _skill_audit_jobs[key] = {
-            "status": "running", "scope": scope, "model": model,
-            "teacher": teacher[1] if teacher else None,
-            "total": len(names), "done": 0, "current": None,
-            "results": [], "log": [f"Auditing {len(names)} skill(s) with {model}" + (f"; teacher {teacher[1]}" if teacher else "")],
-            "started": _time.time(), "cancel": False,
-        }
-        task = _asyncio.create_task(_run_audit_all_job(key, skills_manager, names, url, model, headers, teacher, user))
-        _skill_audit_jobs[key]["task"] = task
-        return {"ok": True, "status": "running", "total": len(names), "model": model}
+        names, scope = _job_coordinator.select_audit_names(
+            skills_manager, user, scope, requested_names, skip_audited,
+        )
+        return _job_coordinator.start_audit_job(
+            key, skills_manager, names, url, model, headers, teacher, user,
+            scope, deps=_audit_dependencies(),
+        )
 
     @router.get("/audit-all/status")
     async def audit_status(request: Request):
         user = _owner(request)
-        job = _skill_audit_jobs.get((user or "",))
-        if not job:
-            return {"status": "none"}
-        return {
-            "status": job["status"], "scope": job.get("scope"),
-            "total": job.get("total", 0), "done": job.get("done", 0),
-            "current": job.get("current"), "model": job.get("model"), "teacher": job.get("teacher"),
-            "results": job.get("results", []), "log": job.get("log", []),
-            "started": job.get("started"), "finished": job.get("finished"),
-        }
+        return _job_coordinator.audit_status(user, deps=_audit_dependencies())
 
     @router.post("/audit-all/cancel")
     async def audit_cancel(request: Request):
         user = _owner(request)
-        job = _skill_audit_jobs.get((user or "",))
-        if job:
-            job["cancel"] = True
-            job["status"] = "cancelled"
-            job["current"] = None
-            task = job.get("task")
-            if task and not task.done():
-                task.cancel()
-        return {"ok": True, "status": "cancelled" if job else "none"}
+        return _job_coordinator.cancel_audit(user, deps=_audit_dependencies())
 
     @router.post("/{skill_id}/markdown")
     async def save_skill_markdown(request: Request, skill_id: str):

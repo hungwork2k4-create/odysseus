@@ -1,20 +1,15 @@
+"""Backward-compat shim — canonical location is routes/vault/vault_routes.py.
+
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.vault_routes``, ``from routes.vault_routes import X``,
+and the ``import ... as vr`` + ``monkeypatch.setattr(vr, ...)`` pattern used
+by test_vault_password_not_in_argv.py all operate on the *same* object.
+Keeps existing import paths working after slice 2k (#4082/#4071).
 """
-vault_routes.py
 
-Vaultwarden / Bitwarden CLI integration — config and unlock endpoints.
-Stores the BW_SESSION key in data/vault.json with restrictive permissions.
-"""
+import sys as _sys
 
-import json
-import logging
-import os
-import shutil
-import asyncio
-from pathlib import Path
-from datetime import datetime
-from fastapi import APIRouter, Request
-from pydantic import BaseModel
-
+<<<<<<< HEAD
 from core.middleware import require_admin
 from core.platform_compat import IS_WINDOWS, safe_chmod, which_tool
 
@@ -239,3 +234,8 @@ async def _check_bw_installed() -> bool:
         return proc.returncode == 0
     except Exception:
         return False
+=======
+from routes.vault import vault_routes as _canonical  # noqa: F401
+
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * emailLibrary.js — Email library popup modal.
  * Similar pattern to documentLibrary.js. Shows emails in a grid with search/filter.
@@ -5202,16 +5203,32 @@ async function _createEmailReplyReminder(em, dueDate) {
 }
 
 // Sanitize untrusted HTML email bodies before injecting via innerHTML.
+=======
+// static/js/emailLibrary.js — compatibility wrapper.
 //
-// Denylist sanitizer — has to block every well-known XSS sink:
-//   - <script>, <iframe>, <object>, <embed>, <form>, <style>, <link>
-//   - SVG entirely (event handlers, <use href="javascript:">, <foreignObject>,
-//     <animate>, <set>, etc.). Email clients don't need SVG.
-//   - <math> (MathML can carry handlers).
-//   - <base href="...">, <meta http-equiv="refresh">, <noscript>, <frame>,
-//     <frameset>, <applet>, <portal>.
-//   - on* attributes; javascript:/vbscript:/data: URLs in href/src/srcset/
-//     formaction/action/background/poster/data attributes.
-//   - srcdoc (defensive — iframe is already nuked).
-//   - inline `style` declarations containing javascript: or expression().
-// _sanitizeHtml / _escLinkify live in ./emailLibrary/utils.js
+// The email library now lives in `static/js/emailLibrary/`. This file stays at
+// the old path because five call sites import it, four of them dynamically
+// with a version query string (`emailInbox.js`, `chatStream.js`,
+// `chatRenderer.js`, `document.js`, `settings.js`), and `sw.js` caches URLs
+// verbatim. Re-exporting here means the move needed no coordinated edit to any
+// of them.
+//
+// Importing this module evaluates `emailLibrary/index.js`, so the side effects
+// the panel relies on — the `window.__odysseusGetActiveEmailContext` bridge,
+// the agent tool-output listeners — still happen exactly when they used to.
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
+//
+// New code should import `./emailLibrary/index.js` directly.
+
+export {
+  refreshEmailLibrary,
+  prewarmEmailLibrary,
+  prewarmUnreadEmails,
+  initEmailLibrary,
+  isOpen,
+  openEmailLibrary,
+  openEmailFromTool,
+  mountEmailSettings,
+  openEmailLibrarySettings,
+  closeEmailLibrary,
+} from './emailLibrary/index.js';

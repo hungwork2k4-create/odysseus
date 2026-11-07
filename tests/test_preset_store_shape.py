@@ -10,3 +10,7 @@ def test_non_object_preset_store_falls_back_to_defaults(tmp_path):
 
     assert manager.presets == PresetManager.DEFAULT_PRESETS
     assert manager.get("custom")["enabled"] is False
+<<<<<<< HEAD
+=======
+    assert manager.get("custom")["max_tokens"] == 32768
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

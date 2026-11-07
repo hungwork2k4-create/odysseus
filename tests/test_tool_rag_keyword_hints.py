@@ -32,7 +32,11 @@ def test_tell_in_web_query_does_not_force_email_tools():
     """The #1707 repro: a web request that merely contains the word 'tell' must
     NOT drag in the email toolset."""
     ti = _index_without_embeddings()
+<<<<<<< HEAD
     q = "visit https://www.youtube.com/user/PewDiePie and tell me the title of his latest video"
+=======
+    q = "visit https://www.youtube.com/user/example and tell me the title of the latest video"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     tools = ti.get_tools_for_query(q)
     leaked = _EMAIL_TOOLS & tools
     assert not leaked, f"'tell me' must not force-include email tools, got {sorted(leaked)}"
@@ -40,6 +44,17 @@ def test_tell_in_web_query_does_not_force_email_tools():
     assert "web_search" in tools and "web_fetch" in tools
 
 
+<<<<<<< HEAD
+=======
+def test_explicit_web_search_query_gets_web_tools_without_retrieval():
+    """Explicit web-search phrasing must surface web tools even if embeddings
+    return nothing."""
+    ti = _index_without_embeddings()
+    tools = ti.get_tools_for_query("use web search and find a recipe for chocolate chip cookies")
+    assert "web_search" in tools and "web_fetch" in tools
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 def test_genuine_email_query_still_gets_email_tools():
     """Removing 'tell' must not break real email intent — the actual email
     keywords still force-include the toolset."""

@@ -13,7 +13,10 @@ while completing reliably everywhere.
 """
 
 import tempfile
+<<<<<<< HEAD
 import sys
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 import uuid
 from types import SimpleNamespace
 
@@ -22,6 +25,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 from unittest.mock import MagicMock
 
+<<<<<<< HEAD
 
 def _drop_fake_core_database():
     parent = sys.modules.get("core")
@@ -36,13 +40,22 @@ def _drop_fake_core_database():
 
 
 _drop_fake_core_database()
+=======
+from tests.helpers.import_state import clear_fake_database_modules
+
+clear_fake_database_modules()
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 import core.database as cdb
 import routes.document_routes as droutes
 from core.database import Document
 from core.database import Session as DbSession
 from routes.document_helpers import DocumentPatch
+<<<<<<< HEAD
 from src.tool_implementations import set_active_document, get_active_document
+=======
+from src.agent_tools.document_tools import set_active_document, get_active_document
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 _TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _ENGINE = create_engine(

@@ -14,6 +14,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
+<<<<<<< HEAD
+=======
+from tests.helpers.import_state import clear_module
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 def _real_core_package():
     root = Path(__file__).resolve().parent.parent
@@ -23,9 +28,13 @@ def _real_core_package():
         core = types.ModuleType("core")
         sys.modules["core"] = core
     core.__path__ = [core_path]
+<<<<<<< HEAD
     if hasattr(core, "auth"):
         delattr(core, "auth")
     sys.modules.pop("core.auth", None)
+=======
+    clear_module("core.auth")
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     return core
 
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+<<<<<<< HEAD
 
 
 STYLE_CSS = Path(__file__).resolve().parents[1] / "static" / "style.css"
@@ -6,6 +7,14 @@ STYLE_CSS = Path(__file__).resolve().parents[1] / "static" / "style.css"
 
 def _style_text() -> str:
     return STYLE_CSS.read_text(encoding="utf-8")
+=======
+from tests.helpers.stylesheets import app_css
+
+
+STYLE_CSS_TEXT = app_css()
+def _style_text() -> str:
+    return STYLE_CSS_TEXT
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def test_native_select_options_use_theme_tokens():

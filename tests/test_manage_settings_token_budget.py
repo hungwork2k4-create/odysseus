@@ -3,7 +3,11 @@ import asyncio
 import json
 
 import src.settings as settings_mod
+<<<<<<< HEAD
 from src.tool_implementations import do_manage_settings
+=======
+from src.agent_tools.admin_tools import do_manage_settings
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def test_set_token_budget_is_not_refused_as_secret(monkeypatch):

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import importlib.machinery
 import importlib.util
 from pathlib import Path
@@ -14,6 +15,13 @@ def _load_dispatcher():
 
 def test_is_runnable_subcommand_requires_executable_file(tmp_path):
     cli = _load_dispatcher()
+=======
+from tests.helpers.cli_loader import load_script
+
+
+def test_is_runnable_subcommand_requires_executable_file(tmp_path):
+    cli = load_script("odysseus")
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     sub = tmp_path / "odysseus-demo"
     sub.write_text("#!/bin/sh\n")
     sub.chmod(0o644)

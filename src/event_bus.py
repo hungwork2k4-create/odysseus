@@ -12,9 +12,16 @@ import os
 from datetime import datetime
 from typing import Optional
 
+from src.constants import AUTH_FILE
+
 logger = logging.getLogger(__name__)
 
 _task_scheduler = None
+
+
+def _event_automation_enabled_for_owner(owner: Optional[str]) -> bool:
+    """Synthetic fixture activity must not auto-fire durable user tasks."""
+    return not str(owner or "").strip().casefold().startswith("sft_")
 
 
 def set_task_scheduler(scheduler):
@@ -35,7 +42,12 @@ def fire_event(event_name: str, owner: Optional[str] = None):
     """
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(_handle_event(event_name, owner))
+        # Let the request that emitted the event finish before automation can
+        # start model work on the same event loop. Otherwise a document create
+        # can appear to hang while an event-triggered task is running.
+        # Keep the handoff outside the response flush window. Event-triggered
+        # tasks may still perform synchronous work before their first await.
+        loop.call_later(1.0, lambda: loop.create_task(_handle_event(event_name, owner)))
     except RuntimeError:
         # No running loop — run in a new one (shouldn't happen in FastAPI)
         asyncio.run(_handle_event(event_name, owner))
@@ -54,9 +66,7 @@ def _resolve_event_owner(owner: Optional[str]) -> Optional[str]:
         return owner
 
     try:
-        from src.constants import DATA_DIR
-
-        auth_path = os.path.join(DATA_DIR, "auth.json")
+        auth_path = AUTH_FILE
         with open(auth_path, "r", encoding="utf-8") as f:
             users = (json.load(f).get("users") or {})
         for username, data in users.items():
@@ -74,6 +84,8 @@ async def _handle_event(event_name: str, owner: Optional[str] = None):
     from core.database import SessionLocal, ScheduledTask
 
     resolved_owner = _resolve_event_owner(owner)
+    if not _event_automation_enabled_for_owner(resolved_owner):
+        return
     db = SessionLocal()
     try:
         filters = [
@@ -105,12 +117,6 @@ async def _handle_event(event_name: str, owner: Optional[str] = None):
                 db.commit()
                 # Fire the task
                 if _task_scheduler:
-                    if task.next_run and task.next_run > datetime.utcnow():
-                        logger.info(
-                            f"Event '{event_name}' reached task '{task.name}', "
-                            f"but it is already deferred until {task.next_run}"
-                        )
-                        continue
                     logger.info(f"Event '{event_name}' triggered task '{task.name}' (every {threshold})")
                     await _task_scheduler.run_task_now(task.id)
                 else:

@@ -28,6 +28,10 @@ SKILL_EXTRACT_PROMPT = (
     "(personal errands, a specific person/place/date, casual conversation).\n"
     "- A pure question/answer or explanation with no transferable method.\n"
     "- The agent failed, gave up, or the approach is not worth repeating.\n\n"
+    "- Routine use of an existing tool, or a generic checklist with no new discovery.\n"
+    "Prefer a specific successful workaround, an unexpected pitfall, or a verified "
+    "sequence that would save rediscovery. Preserve exact useful commands and "
+    "verification steps, but replace private identifiers and credentials with placeholders.\n\n"
     "When (and only when) a genuine reusable procedure exists, return a JSON "
     "object with:\n"
     '- "title": short name (under 10 words)\n'
@@ -63,6 +67,65 @@ def _has_duplicate_title(skills, title: str) -> bool:
     return False
 
 
+<<<<<<< HEAD
+=======
+def _extract_json_object(text: str) -> Optional[dict]:
+    """Best-effort extraction of a JSON object from an LLM response.
+
+    The response may be wrapped in code fences or surrounded by prose. Uses
+    json.JSONDecoder().raw_decode() to locate the boundaries of complete JSON
+    objects starting at each '{' position. Nested objects are filtered out to
+    keep only top-level candidates. If multiple non-overlapping valid JSON
+    objects are found, it is treated as ambiguous and returns None. Otherwise,
+    returns the single valid candidate dictionary.
+    """
+    if not text:
+        return None
+    s = text.strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+    decoder = json.JSONDecoder()
+    candidates = []
+
+    start = s.find("{")
+    while start != -1:
+        try:
+            obj, idx = decoder.raw_decode(s[start:])
+            end_pos = start + idx
+            if isinstance(obj, dict):
+                candidates.append((start, end_pos, obj))
+        except (json.JSONDecodeError, ValueError):
+            pass
+        start = s.find("{", start + 1)
+
+    # Filter out nested candidates to identify top-level dictionaries
+    top_level = []
+    for c in candidates:
+        is_nested = False
+        for other in candidates:
+            if other == c:
+                continue
+            if other[0] <= c[0] and c[1] <= other[1]:
+                is_nested = True
+                break
+        if not is_nested:
+            top_level.append(c)
+
+    if not top_level:
+        return None
+
+    if len(top_level) > 1:
+        logger.debug(
+            "[skill-extract] Found multiple non-overlapping JSON objects: %s",
+            [item[2].get("title") for item in top_level]
+        )
+        return None
+
+    return top_level[0][2]
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 async def maybe_extract_skill(
     session,
     skills_manager,
@@ -89,6 +152,7 @@ async def maybe_extract_skill(
 
     try:
         from src.llm_core import llm_call_async
+        from src.utility_effort import effort_for_call
 
         # Get recent messages
         history = session.get_context_messages()
@@ -144,6 +208,7 @@ async def maybe_extract_skill(
             ],
             headers=headers,
             timeout=30,
+            reasoning_effort=effort_for_call(endpoint_url, model, owner, session),
         )
         logger.debug(
             "[skill-extract] LLM returned in %.1fs (len=%d, head=%r)",
@@ -169,21 +234,14 @@ async def maybe_extract_skill(
         except Exception:
             pass
 
-        # Parse JSON
-        text = response.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        # After strip_think, the JSON may still be embedded inside surrounding
-        # commentary — slice from the first '{' to the matching last '}'.
-        if text and text[0] != "{":
-            _start = text.find("{")
-            _end = text.rfind("}")
-            if 0 <= _start < _end:
-                text = text[_start : _end + 1]
-
-        data = json.loads(text)
-        if not data or not isinstance(data, dict):
-            logger.debug("[skill-extract] parsed JSON not a dict, dropping")
+        # Parse JSON. The object may be wrapped in code fences or surrounded by
+        # commentary (and may contain a stray/invalid brace fragment before
+        # the real object — including one that makes the response itself look
+        # like it starts with '{'), so use a tolerant extractor that tries the
+        # whole string first and then each '{' candidate left-to-right.
+        data = _extract_json_object(response)
+        if not data:
+            logger.debug("[skill-extract] no JSON object found in response, dropping")
             return None
 
         title = data.get("title", "").strip()
@@ -209,6 +267,13 @@ async def maybe_extract_skill(
         if _has_duplicate_title(existing, title):
             logger.debug("[skill-extract] '%s' already exists — dropped as duplicate", title)
             return None
+<<<<<<< HEAD
+=======
+
+        # Automatic approval happens only after the audit has passed. A new
+        # extraction begins as a draft so it cannot enter chat context early.
+        _initial_status = "draft"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
         entry = skills_manager.add_skill(
             title=title,
@@ -220,6 +285,7 @@ async def maybe_extract_skill(
             confidence=data.get("confidence", 0.7),
             session_id=getattr(session, "session_id", None),
             owner=owner,
+            status=_initial_status,
         )
         try:
             from src.event_bus import fire_event

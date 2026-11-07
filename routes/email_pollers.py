@@ -1,21 +1,15 @@
-"""
-email_pollers.py
+"""Backward-compat shim — canonical location is routes/email/email_pollers.py.
 
-Background loops that periodically scan IMAP and act on mail:
-
-    - `_auto_summarize_pass` / `_auto_summarize_pass_single` — daily/hourly
-      summary + AI-reply + spam-classification pass over recently received mail.
-    - `_auto_summarize_poller` — driver that wakes the pass on a 30-min cadence.
-    - `_scheduled_email_poller` — polls the `scheduled_emails` SQLite for
-      due rows and delivers them via SMTP.
-    - `_start_poller` — entry point called once at app startup; spawns both
-      pollers + handles the deferred-start trick when the event loop is not
-      yet running.
-
-Pure helpers live in `email_helpers.py`. Routes themselves live in
-`email_routes.py`.
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.email_pollers``, ``from routes.email_pollers import X``,
+``importlib.import_module("routes.email_pollers")`` and the
+``import ... as email_pollers`` + ``monkeypatch.setattr(email_pollers, ...)``
+pattern used across the email tests all operate on the *same* object the
+application actually uses. Source-introspection tests read the canonical file
+by path.
 """
 
+<<<<<<< HEAD
 import email as email_mod
 import email.utils  # the `email` binding is referenced as email.utils.parseaddr inside the pass
 import smtplib
@@ -25,10 +19,13 @@ import html
 import logging
 import inspect
 from datetime import datetime
+=======
+import sys as _sys
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from routes.email import email_pollers as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 from src.llm_core import llm_call_async
 
 from routes.email_helpers import (
@@ -1126,3 +1123,6 @@ def _start_poller():
 
         # Store for the router lifespan / first-request hook
         _start_poller._deferred = _deferred_start
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

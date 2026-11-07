@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 # (Same trick as test_null_owner_gates.py — the real modules instantiate
 # SQLAlchemy declarative classes at import-time which blow up under the
 # conftest's `sqlalchemy.*` MagicMock stubs.)
-def _ensure_stub(name: str, **attrs):
+def _ensure_stub(monkeypatch, name: str, **attrs):
     """Create or augment a stub module with the given attributes.
     Augments existing entries because earlier-run tests may have already
     stubbed the same module with a different attribute set.
@@ -48,7 +48,7 @@ def _ensure_stub(name: str, **attrs):
                 *parent_name.split("."),
             )
             parent.__path__ = [real_path] if os.path.isdir(real_path) else []
-            sys.modules[parent_name] = parent
+            monkeypatch.setitem(sys.modules, parent_name, parent)
         else:
             parent = sys.modules[parent_name]
     else:
@@ -58,17 +58,21 @@ def _ensure_stub(name: str, **attrs):
     mod = sys.modules.get(name)
     if mod is None:
         mod = types.ModuleType(name)
-        sys.modules[name] = mod
+        monkeypatch.setitem(sys.modules, name, mod)
     for k, v in attrs.items():
         if not hasattr(mod, k):
-            setattr(mod, k, v)
+            monkeypatch.setattr(mod, k, v, raising=False)
     if parent is not None and not hasattr(parent, child_name):
-        setattr(parent, child_name, mod)
+        monkeypatch.setattr(parent, child_name, mod, raising=False)
     return mod
 
 @pytest.fixture(autouse=True)
 def _auth_regressions_stubs(monkeypatch):
+<<<<<<< HEAD
     db = _ensure_stub("core.database",
+=======
+    db = _ensure_stub(monkeypatch, "core.database",
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         SessionLocal=MagicMock(), ScheduledTask=MagicMock(), TaskRun=MagicMock(),
         ModelEndpoint=MagicMock(), Session=MagicMock(), ChatMessage=MagicMock(),
         CalendarCal=MagicMock(), CalendarEvent=MagicMock(),
@@ -76,6 +80,7 @@ def _auth_regressions_stubs(monkeypatch):
         GalleryImage=MagicMock(), GalleryAlbum=MagicMock(), Note=MagicMock(),
         McpServer=MagicMock(),
     )
+<<<<<<< HEAD
     auth = _ensure_stub("core.auth", AuthManager=MagicMock())
     ep = _ensure_stub("src.endpoint_resolver",
         resolve_endpoint=MagicMock(return_value=("", "", {})),
@@ -87,6 +92,20 @@ def _auth_regressions_stubs(monkeypatch):
     monkeypatch.setitem(sys.modules, "core.auth", auth)
     monkeypatch.setitem(sys.modules, "src.endpoint_resolver", ep)
 
+=======
+    auth = _ensure_stub(monkeypatch, "core.auth", AuthManager=MagicMock())
+    ep = _ensure_stub(monkeypatch, "src.endpoint_resolver",
+        resolve_endpoint=MagicMock(return_value=("", "", {})),
+        normalize_base=MagicMock(),
+        build_chat_url=MagicMock(),
+        build_models_url=MagicMock(),
+        build_headers=MagicMock(),
+    )
+    # _ensure_stub now registers each stub through monkeypatch itself, so the
+    # whole set is undone at teardown. Re-setting them here would capture the
+    # stub as the restore target and leave it behind for the rest of the run.
+    assert db and auth and ep
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 from fastapi import HTTPException
 
@@ -293,7 +312,7 @@ def test_research_spinoff_rejects_wrong_owner():
 # pop_notifications owner filter
 # ---------------------------------------------------------------------------
 
-def test_pop_notifications_owner_filtered():
+def test_pop_notifications_owner_filtered(monkeypatch):
     """pop_notifications(owner='alice') must return only alice's items.
     bob's and legacy ownerless items stay behind in the queue."""
     # Build a minimal scheduler instance that we can hit directly.
@@ -302,11 +321,15 @@ def test_pop_notifications_owner_filtered():
     import sys, types
     from unittest.mock import MagicMock as _MM
     # `task_scheduler` pulls in lots of helpers — stub the ones it uses.
+    # monkeypatch.setitem, not a bare assignment: a plain write leaves these
+    # empty stubs in sys.modules for the rest of the session, and every later
+    # test that imports a real name from one of them fails with
+    # "cannot import name ... (unknown location)". The stubs above in this file
+    # already use monkeypatch for the same reason.
     for s in ["src.builtin_actions", "src.ai_interaction", "src.endpoint_resolver",
               "src.agent_loop", "src.session_manager"]:
         if s not in sys.modules:
-            mod = types.ModuleType(s)
-            sys.modules[s] = mod
+            monkeypatch.setitem(sys.modules, s, types.ModuleType(s))
     from src.task_scheduler import TaskScheduler
     sch = TaskScheduler.__new__(TaskScheduler)  # bypass __init__ network etc.
     sch._pending_notifications = []
@@ -334,6 +357,7 @@ def test_pop_notifications_owner_filtered():
 def test_admin_only_actions_set_contains_shell_runners():
     """The constant defining shell-executing action types must include
     the three risky entries. Catches accidental removal."""
+<<<<<<< HEAD
     from routes import task_routes
     # `_ADMIN_ONLY_ACTIONS` is a closure constant. Easiest pin: re-read
     # the source and check for the three risky entries + the admin gate
@@ -344,6 +368,13 @@ def test_admin_only_actions_set_contains_shell_runners():
     assert '"ssh_command"' in src
     # And the gate is wired into both create and update paths.
     assert "Action '" in src and "requires admin privileges" in src
+=======
+    from src.task_action_policy import ADMIN_ONLY_TASK_ACTIONS
+
+    assert "run_local" in ADMIN_ONLY_TASK_ACTIONS
+    assert "run_script" in ADMIN_ONLY_TASK_ACTIONS
+    assert "ssh_command" in ADMIN_ONLY_TASK_ACTIONS
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def test_task_create_notification_default_allows_action_specific_defaults():

@@ -14,6 +14,13 @@ from src.constants import SETTINGS_FILE, FEATURES_FILE
 
 logger = logging.getLogger(__name__)
 
+# Keys retained in the raw settings store for compatibility and rollback, but
+# deliberately unavailable through generic settings APIs or agent tools.  They
+# must stay in ``DEFAULT_SETTINGS`` so old files continue to load without data
+# loss; callers that present or mutate settings should use this set as a
+# tombstone boundary.
+RETIRED_SETTING_KEYS = frozenset({"default_model_fallbacks"})
+
 # Tiny TTL cache for settings/features. get_setting() is called on hot paths
 # (every chat, every preprocess); without this it re-parses the JSON each call.
 # Picks up edits within _CACHE_TTL seconds, which is fine for human-edited config.
@@ -29,7 +36,15 @@ def _invalidate_caches():
 # ── Default values ──
 
 DEFAULT_SETTINGS = {
-    "image_gen_enabled": True,
+    # Agent email safety: when True, the MCP send_email / reply_to_email
+    # tools don't SMTP directly. They stage the composed message into the
+    # scheduled_emails table with status='agent_draft' and return a
+    # pending_id + the rendered email so the user can review and approve
+    # (or cancel) before it actually goes out. Default ON because models
+    # have been observed inventing signatures and sending to real
+    # recipients without confirmation.
+    "agent_email_confirm": True,
+    "image_gen_enabled": False,
     "image_model": "",
     "image_quality": "medium",
     "vision_model": "",
@@ -56,11 +71,17 @@ DEFAULT_SETTINGS = {
     "search_url": "",
     "search_result_count": 5,
     # SafeSearch level applied to every provider that exposes one.
+<<<<<<< HEAD
     # "strict"   — block adult / explicit results (default; matches what users
     #              expect from a research tool and avoids unrelated NSFW URLs
     #              bleeding in via provider "related" / spam recommendations)
     # "moderate" — provider-default behavior (filter explicit but allow
     #              suggestive content)
+=======
+    # "strict"   — apply the provider's strongest filtering level (default;
+    #              keeps unrelated low-quality/spam recommendations out)
+    # "moderate" — provider-default filtering behavior
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     # "off"      — disable filtering entirely (advanced users only)
     #
     # Providers that honor this setting (translated to each provider's native
@@ -85,6 +106,14 @@ DEFAULT_SETTINGS = {
     "research_search_provider": "",
     "research_max_tokens": 16384,
     "research_extraction_timeout_seconds": 90,
+<<<<<<< HEAD
+=======
+    # Lightweight planning/query LLM calls happen before any search starts.
+    # Keep them separately tunable so slow local backends are not capped by
+    # the old 30s/60s per-call defaults.
+    "research_planning_timeout_seconds": 90,
+    "research_query_timeout_seconds": 90,
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     "research_extraction_concurrency": 3,
     # Hard wall-clock cap on a single deep-research run. The previous 600s
     # (10 min) default cut off slow local / edge LLMs mid-synthesis; 1800s
@@ -95,7 +124,17 @@ DEFAULT_SETTINGS = {
     # Tune via Settings or by editing data/settings.json.
     "research_run_timeout_seconds": 1800,
     "agent_max_tool_calls": 0,
+    "agent_max_rounds": 20,  # per-message agent step cap (clamped 1..200)
+    # Soft input-token budget for the agent loop. The DEFAULT value (6000) is the
+    # "auto" sentinel: it means "scale the budget to the model's context window"
+    # (#1230) — so long-context models aren't capped at 6000. Set ANY OTHER value
+    # to enforce an explicit cap (clamped to the window only — hard_max does not
+    # apply to explicit budgets, #1230); set 0 to disable soft-trimming. The
+    # default is treated as auto because the settings-save path materializes
+    # defaults, so a persisted 6000 can't be told apart from a deliberate 6000 —
+    # to pin a budget near the default, use a nearby value (e.g. 5999).
     "agent_input_token_budget": 6000,
+<<<<<<< HEAD
     # Ceiling on the *auto-derived* input budget that #1230 introduced. Has
     # no effect when `agent_input_token_budget` is explicitly set (the user's
     # value is honoured regardless). Default matches
@@ -105,6 +144,18 @@ DEFAULT_SETTINGS = {
     # `compute_input_token_budget` in src/context_budget.py.
     "agent_input_token_hard_max": 200_000,
     "agent_stream_timeout_seconds": 300,
+=======
+    # Ceiling on the *auto-derived* input budget; a configurable setting since #1273
+    # (the merged #1230 left it a module constant). No effect on an explicit budget
+    # — a deliberate value is honoured (#1230). Default matches
+    # `src.context_budget.DEFAULT_HARD_MAX`; lower this for
+    # cost-paranoid setups, raise it on premium APIs with very large windows you
+    # want to actually use (e.g. 900_000 to fill a 1M-context model). See
+    # `compute_input_token_budget`.
+    "agent_input_token_hard_max": 200_000,
+    "agent_stream_timeout_seconds": 300,
+    "auto_compact_threshold_percent": 85,
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     # Extra directory roots that read_file / write_file may access, in
     # addition to the built-in project data/ and system temp dirs. Each
     # entry is an absolute path. Sensitive subpaths (.ssh, .gnupg, shell
@@ -114,18 +165,31 @@ DEFAULT_SETTINGS = {
     "task_model": "",
     "default_endpoint_id": "",
     "default_model": "",
-    # Ordered fallback chain for the default chat model. Each entry is
-    # {"endpoint_id": "...", "model": "..."}. If the primary model fails
-    # before producing output (endpoint offline / errors), the chat
-    # dispatch retries the next entry in order.
+    # Optional prose style used only for normal document writing/editing.
+    # Email replies use email_writing_style instead because greetings,
+    # signatures, and mailbox identity rules are medium-specific.
+    "document_writing_style": "",
+    "email_writing_style": "",
+    # Legacy ordered fallback chain for the default chat model. Values remain
+    # stored for compatibility and rollback reference, but model routing no
+    # longer reads this key.
     "default_model_fallbacks": [],
+    # When True, non-admin users inherit the global default model/endpoint when
+    # they have no personal defaults. When False, users only use their personal
+    # defaults. Default is False.
+    "share_defaults_with_users": False,
     "utility_endpoint_id": "",
     "utility_model": "",
     # Ordered fallback chain for the Utility model (summarization, naming,
     # tidy actions, etc.).
     "utility_model_fallbacks": [],
+    # Opt-in reasoning effort for utility/background LLM calls. Empty keeps the
+    # provider default; a value is sent only to utility-chain candidates whose
+    # model advertises that level.
+    "utility_reasoning_effort": "",
     "teacher_model": "",
     "teacher_enabled": False,
+    "teacher_tier2_enabled": False,
     # Skills: minimum self-reported confidence for an auto-written (LLM-authored)
     # DRAFT skill to be injected into the agent prompt. Published skills always
     # qualify. Keeps low-confidence auto-skills out of context until they're
@@ -135,10 +199,18 @@ DEFAULT_SETTINGS = {
     # library can grow beyond this; cleanup/retirement is an explicit review flow.
     "skill_max_injected": 3,
     # Reminders
-    "reminder_channel": "browser",   # "browser" | "email" | "ntfy"
+    "reminder_channel": "browser",   # "browser" | "email" | "ntfy" | "webhook"
     "reminder_llm_synthesis": False,
+    "reminder_llm_persona": "",
     "reminder_ntfy_topic": "Reminders",
     "reminder_email_to": "",
+    # Generic outbound webhook channel: pick any saved Integration as the
+    # target and supply a JSON payload template. Use {{title}} and {{message}}
+    # as placeholders — they are JSON-escaped before substitution, so the
+    # rendered string is always valid JSON. Works with Discord, Slack, Teams,
+    # ntfy (JSON mode), or any service that accepts a POST with a JSON body.
+    "reminder_webhook_integration_id": "",
+    "reminder_webhook_payload_template": "",
     # Email triage scanner rules. Running/paused state and schedule live in
     # Tasks via the built-in `check_email_urgency` task.
     "urgent_email_prompt": (
@@ -152,7 +224,6 @@ DEFAULT_SETTINGS = {
     # Keyboard shortcuts (action: key combination)
     "keybinds": {
         "search": "ctrl+k",
-        "toggle_sidebar": "ctrl+b",
         "new_session": "ctrl+alt+n",
         "star_session": "ctrl+alt+s",
         "delete_session": "ctrl+alt+d",
@@ -160,6 +231,17 @@ DEFAULT_SETTINGS = {
         "cancel": "escape",
     },
 }
+
+
+def without_retired_settings(settings: dict) -> dict:
+    """Return a shallow copy suitable for generic settings interfaces."""
+    if not isinstance(settings, dict):
+        return {}
+    return {
+        key: value
+        for key, value in settings.items()
+        if key not in RETIRED_SETTING_KEYS
+    }
 
 DEFAULT_FEATURES = {
     "web_search": True,
@@ -210,8 +292,15 @@ def is_setting_overridden(key: str) -> bool:
 
     ``load_settings`` merges DEFAULT_SETTINGS with the saved file, so a value
     equal to its default is indistinguishable from "never set" via get_setting.
+<<<<<<< HEAD
     Callers that need to treat an explicit user choice differently from the
     default (e.g. adaptive budgets) use this to read the raw saved file.
+=======
+    Callers that must distinguish an explicit user choice from a default read
+    the raw saved file via this. (Note: a materialized default is also "present",
+    so value-sensitive callers should compare against the default — see
+    ``context_budget.budget_is_explicit``.)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     """
     try:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -231,8 +320,9 @@ _PER_USER_KEYS = {
     # Default chat endpoint / model — without per-user resolution every new
     # account inherited whatever the most-recent admin picked, which then
     # got injected into the chat composer on first open.
-    "default_endpoint_id", "default_model", "default_model_fallbacks",
+    "default_endpoint_id", "default_model",
     "utility_endpoint_id", "utility_model", "utility_model_fallbacks",
+    "utility_reasoning_effort",
     "research_endpoint_id", "research_model",
 }
 
@@ -270,7 +360,11 @@ def load_features() -> dict:
         if not isinstance(saved, dict):
             raise ValueError("features must be an object")
         merged = {**DEFAULT_FEATURES, **saved}
+<<<<<<< HEAD
     except (FileNotFoundError, json.JSONDecodeError, ValueError):
+=======
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError, ValueError):
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         merged = dict(DEFAULT_FEATURES)
     _features_cache = (now, merged)
     return merged

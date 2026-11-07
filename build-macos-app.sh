@@ -27,6 +27,7 @@ echo "  port:        $PORT"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
+<<<<<<< HEAD
 # ── Icon (best effort) — center-crop docs/odysseus.jpg to a square .icns ──
 if [ -f "$REPO_DIR/docs/odysseus.jpg" ] && command -v sips >/dev/null 2>&1; then
   TMPIMG="$(mktemp -d)"
@@ -34,16 +35,36 @@ if [ -f "$REPO_DIR/docs/odysseus.jpg" ] && command -v sips >/dev/null 2>&1; then
   # let sips emit the .icns directly — more robust across macOS versions than
   # building an .iconset by hand.
   sips -c 720 720 "$REPO_DIR/docs/odysseus.jpg" --out "$TMPIMG/sq.png" >/dev/null 2>&1 || cp "$REPO_DIR/docs/odysseus.jpg" "$TMPIMG/sq.png"
+=======
+# ── Icon (best effort) -- center-crop the branding image to a square .icns ──
+if [ -f "$REPO_DIR/assets/branding/odysseus.jpg" ] && command -v sips >/dev/null 2>&1; then
+  TMPIMG="$(mktemp -d)"
+  # Center-crop to a square, scale to 512 (sips' icns encoder caps at 512), and
+  # let sips emit the .icns directly: more robust across macOS versions than
+  # building an .iconset by hand.
+  sips -c 720 720 "$REPO_DIR/assets/branding/odysseus.jpg" --out "$TMPIMG/sq.png" >/dev/null 2>&1 || cp "$REPO_DIR/assets/branding/odysseus.jpg" "$TMPIMG/sq.png"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   sips -z 512 512 "$TMPIMG/sq.png" --out "$TMPIMG/icon.png" >/dev/null 2>&1
   if sips -s format icns "$TMPIMG/icon.png" --out "$APP/Contents/Resources/odysseus.icns" >/dev/null 2>&1; then
     echo "  icon:        odysseus.icns"
   else
+<<<<<<< HEAD
     echo "  icon:        (skipped — conversion failed)"
   fi
   rm -rf "$TMPIMG"
 else
   echo "  icon:        (skipped — no docs/odysseus.jpg)"
 fi
+=======
+    echo "  icon:        (skipped - conversion failed)"
+  fi
+  rm -rf "$TMPIMG"
+else
+  echo "  icon:        (skipped - no assets/branding/odysseus.jpg)"
+fi
+cp -R "$REPO_DIR/licenses" "$APP/Contents/Resources/licenses"
+cp "$REPO_DIR/THIRD_PARTY_PROVENANCE.json" "$REPO_DIR/ACKNOWLEDGMENTS.md" "$APP/Contents/Resources/"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 # ── Info.plist ──
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -73,6 +94,13 @@ cat > "$APP/Contents/MacOS/$APP_NAME.tmpl" <<'LAUNCHER'
 INSTALL_DIR="__INSTALL_DIR__"
 PORT="__PORT__"
 URL="http://127.0.0.1:${PORT}"
+<<<<<<< HEAD
+=======
+# uvicorn is started with --port below, but APP_PORT is what the app itself
+# reads when it needs to build a URL for this instance (internal_api_base(),
+# companion pairing, the MCP OAuth callback), so export it as well.
+export APP_PORT="$PORT"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 UVICORN="$INSTALL_DIR/venv/bin/uvicorn"

@@ -21,15 +21,35 @@ def _test_utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+<<<<<<< HEAD
 def _stub_heavy():
+=======
+def _stub_heavy(monkeypatch):
+    """Stub the heavy modules ``task_scheduler`` imports, for this test only.
+
+    Registered through ``monkeypatch.setitem`` so every entry is removed at
+    teardown. A bare ``sys.modules[name] = ...`` leaves an empty module behind
+    for the rest of the session, and any later test that imports the real one
+    silently gets the stub instead - a failure that only shows up under a
+    different collection order.
+    """
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     for name in [
         "src.builtin_actions", "src.ai_interaction", "src.endpoint_resolver",
         "src.agent_loop", "src.session_manager",
     ]:
+<<<<<<< HEAD
         sys.modules.setdefault(name, types.ModuleType(name))
 
 
 def _setup_isolated_db():
+=======
+        if name not in sys.modules:
+            monkeypatch.setitem(sys.modules, name, types.ModuleType(name))
+
+
+def _setup_isolated_db(monkeypatch):
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     import core.database as cd
     B = declarative_base()
 
@@ -56,10 +76,17 @@ def _setup_isolated_db():
 
     eng = create_engine("sqlite:///:memory:")
     B.metadata.create_all(eng)
+<<<<<<< HEAD
     cd.engine = eng
     cd.SessionLocal = sessionmaker(bind=eng, autocommit=False, autoflush=False)
     cd.ScheduledTask = ScheduledTask
     cd.TaskRun = TaskRun
+=======
+    monkeypatch.setattr(cd, "engine", eng)
+    monkeypatch.setattr(cd, "SessionLocal", sessionmaker(bind=eng, autocommit=False, autoflush=False))
+    monkeypatch.setattr(cd, "ScheduledTask", ScheduledTask)
+    monkeypatch.setattr(cd, "TaskRun", TaskRun)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     return cd, ScheduledTask, TaskRun
 
 
@@ -74,8 +101,13 @@ def test_scheduler_utcnow_preserves_naive_utc_contract():
 
 def _drive_scheduler(monkeypatch, pre_start_setup=None):
     """Build a TaskScheduler bypassing __init__ and run start() + two polls."""
+<<<<<<< HEAD
     _stub_heavy()
     cd, ScheduledTask, TaskRun = _setup_isolated_db()
+=======
+    _stub_heavy(monkeypatch)
+    cd, ScheduledTask, TaskRun = _setup_isolated_db(monkeypatch)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     from src.task_scheduler import TaskScheduler
     sch = TaskScheduler.__new__(TaskScheduler)
@@ -98,11 +130,34 @@ def _drive_scheduler(monkeypatch, pre_start_setup=None):
     monkeypatch.setattr(sch, "_note_pings_loop", _never)
 
     dispatched = []
+<<<<<<< HEAD
     def _fake_create_task(coro):
         dispatched.append(coro)
         class _T:
             def cancel(self): pass
         return _T()
+=======
+
+    def _fake_create_task(coro):
+        name = getattr(getattr(coro, "cr_code", None), "co_name", None)
+
+        # start() schedules the long-lived scheduler loops. This test replaces
+        # asyncio.create_task intentionally, so intercepted coroutine objects
+        # must be closed explicitly instead of being left unawaited.
+        if name != "_never":
+            dispatched.append(coro)
+
+        close = getattr(coro, "close", None)
+        if callable(close):
+            close()
+
+        class _T:
+            def cancel(self):
+                pass
+
+        return _T()
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     monkeypatch.setattr("src.task_scheduler.asyncio.create_task", _fake_create_task)
 
     async def _drive():
@@ -111,11 +166,15 @@ def _drive_scheduler(monkeypatch, pre_start_setup=None):
         await sch._check_due_tasks()
         return dispatched
 
+<<<<<<< HEAD
     all_dispatched = asyncio.run(_drive())
     # start() also fires the long-lived _loop and _note_pings_loop as tasks
     # (stubbed to _never here); filter those out so the test only counts
     # real per-poll task dispatches.
     real_dispatches = [c for c in all_dispatched if c.__name__ != "_never"]
+=======
+    real_dispatches = asyncio.run(_drive())
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     return cd, ScheduledTask, TaskRun, real_dispatches
 
 

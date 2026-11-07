@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Odysseus
 
 ```
@@ -5,46 +6,46 @@
  ⊹ ࣪ ˖ ૮( ˶ᵔ ᵕ ᵔ˶ )っ  Odysseus vers. 1.0
 ───────────────────────────────────────────────
 ```
+=======
+<p align="center">
+  <img src="assets/branding/odysseus-wordmark.png" alt="Odysseus" width="238">
+</p>
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
-![Odysseus](docs/odysseus.jpg)
+<p align="center">
+  A self-hosted AI workspace for chat, agents, research, documents, email, notes, calendar, and local model workflows.
+</p>
 
-A self-hosted AI workspace -- meant to be the self-hosted version of the UI experience you get from ChatGPT and Claude. But with more jank and fun. Running on your own hardware, with your own data -- local-first, privacy-first, and no trojan.
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="website/setup.md">Setup Guide</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="ROADMAP.md">Roadmap</a>
+</p>
 
-## Features
-  - **Chat** -- chat with any local model or API; adding them is super simple.<br>　<sub>vLLM · llama.cpp · Ollama · OpenRouter · OpenAI</sub>
-  - **Agent** -- hand it tools and let it run the whole task itself.<br>　<sub>built on [opencode](https://github.com/anomalyco/opencode) · MCP · web · files · shell · skills · memory</sub>
-  - **Cookbook** -- Scans your hardware, recommends models, click to download and serve.. easy!<br>　<sub>built on [llmfit](https://github.com/AlexsJones/llmfit) · VRAM-aware · GGUF / FP8 / AWQ · fit scoring · vLLM / llama.cpp serving</sub>
-  - **Deep Research** -- multi-step runs that gather, read, and synthesize sources into a nice visual report.<br>　<sub>adapted from [Tongyi DeepResearch](https://github.com/Alibaba-NLP/DeepResearch)</sub>
-  - **Compare** -- a fun tool to compare models side by side. Test completely blind, no bias!<br>　<sub>multi-model · blind test · synthesis</sub>
-  - **Documents** -- YOU write the text, AI is there to assist, not the opposite.<br>　<sub>multi-tab editor · markdown · HTML · CSV · syntax highlighting · AI edits · suggestions</sub>
-  - **Memory / Skills** -- Persistent memory and skills, your agent evolves over time as it better understands you and your tasks!<br>　<sub>ChromaDB · fastembed (ONNX) · vector + keyword retrieval · import/export</sub>
-  - **Email** -- IMAP/SMTP inbox with AI triage built in: urgency reminders, auto-tag, auto-summary, auto-reply drafts, auto-spam.<br>　<sub>IMAP · SMTP · per-account routing · CalDAV-aware</sub>
-  - **Notes & Tasks** -- Quick notes with reminders, a todo list, and scheduled tasks the agent can act on.<br>　<sub>note pings · checklist · cron-style tasks · ntfy / browser / email channels</sub>
-  - **Calendar** -- Local-first calendar with CalDAV sync to Radicale / Nextcloud / Apple / Fastmail.<br>　<sub>CalDAV pull · .ics import/export · per-calendar colors · agent-aware</sub>
-  - **Works on mobile** -- looks and runs great on your phone, not just desktop.<br>　<sub>responsive · installable (PWA) · touch gestures</sub>
-  - **Extras** -- more to explore, happy if you give it a go!<br>　<sub>image editor · theme editor · file uploads (vision + PDF) · web search · presets · sessions · 2FA</sub>
+<p align="center">
+  <a href="https://repology.org/project/odysseus-ai/versions"><img src="https://repology.org/badge/vertical-allrepos/odysseus-ai.svg" alt="Packaging status"></a>
+</p>
 
+<<<<<<< HEAD
 ## Demo
 A full, hover-to-play tour lives on the landing page (`docs/index.html`).
 
 <details>
 <summary>Screenshots / clips</summary>
+=======
+<p align="center">
+  <img src="assets/branding/odysseus-browser.jpg" alt="Odysseus interface">
+</p>
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
-### Chat & Agents
-![Chat & Agents](docs/chat.gif)
-### Deep Research
-![Deep Research](docs/research.gif)
-### Compare
-![Compare](docs/compare.gif)
-### Documents
-![Documents](docs/document.gif)
-### Notes & Tasks
-![Notes & Tasks](docs/notes.gif)
+---
 
 </details>
 
 ## Quick Start
 
+<<<<<<< HEAD
 Defaults work out of the box: clone, run, then configure models/search/email
 inside **Settings**. Only edit `.env` for deployment-level overrides like
 `APP_BIND`, `APP_PORT`, `AUTH_ENABLED`, `DATABASE_URL`, or a pre-seeded admin password.
@@ -58,12 +59,17 @@ Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, and
 pull request guidelines.
 
 ### Docker (recommended)
+=======
+> `dev` is the default branch and gets the newest changes first. Use [`main`](https://github.com/odysseus-dev/odysseus/tree/main) if you want the more curated branch.
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 ```bash
-git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+git clone https://github.com/odysseus-dev/odysseus.git
 cd odysseus
-cp .env.example .env       # optional, but recommended for explicit defaults
+cp .env.example .env
 docker compose up -d --build
 ```
+<<<<<<< HEAD
 Open `http://localhost:7000` when the containers are healthy. Docker Compose
 binds the web UI to `127.0.0.1` by default. If the port is taken, set
 `APP_PORT=7001` in `.env` and recreate the container. Set `APP_BIND=0.0.0.0`
@@ -365,17 +371,41 @@ Common internal-only ports from the default docs/compose setup:
 | `8100` | ChromaDB host port for manual/compose access |
 | `11434` | Ollama |
 | `8000-8020` | Common local model/provider APIs |
+=======
+
+Open `http://localhost:7011` when the containers are healthy. The first admin password is printed in `docker compose logs odysseus`.
+
+The compose files pull the official multi-arch image `ghcr.io/odysseus-dev/odysseus` (published by CI on every push to `main` and `dev`) and only build locally if the pull fails — so this also works on hosts without a build toolchain, e.g. as a [Portainer](https://www.portainer.io/) stack.
+
+**Production deployments:** pin the immutable tag instead of `:latest`. `:latest` and bare `:X.Y.Z` tags move on every push to `main`, but `:X.Y.Z-<sha>` (e.g. `1.0.2-7c8070f`) always refers to one specific build:
+
+```bash
+ODYSSEUS_IMAGE=ghcr.io/odysseus-dev/odysseus:1.0.2-7c8070f docker compose up -d
+```
+
+Native installs, GPU notes, Windows/macOS instructions, HTTPS, and configuration live in the [setup guide](website/setup.md).
+
+## Features
+
+- **Chat + Agents** — local/API models, tools, MCP, files, shell, skills, and memory.
+- **Cookbook** — hardware-aware model recommendations, downloads, and serving.
+- **Deep Research** — multi-step web research with source reading and report generation.
+- **Compare** — blind side-by-side model testing and synthesis.
+- **Documents** — writing-first editor with AI edits, suggestions, Markdown, HTML, CSV, and syntax highlighting.
+- **Email** — IMAP/SMTP inbox with triage, tags, summaries, reminders, and reply drafts.
+- **Notes, Tasks + Calendar** — reminders, todos, scheduled agent tasks, and CalDAV sync.
+- **Extras** — gallery/image editor, themes, uploads, web search, presets, sessions, and 2FA.
+
+## Demo
+
+A full hover-to-play tour lives on the [Odysseus landing page](https://odysseus-dev.github.io/odysseus/). Its source lives under [`website/`](website/).
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 ## Contributing
-Help is welcome. The best entry points are fresh-install testing, provider setup
-bugs, mobile/editor polish, docs, and small focused refactors. See
-[ROADMAP.md](ROADMAP.md) for the current help-wanted list.
 
-## Configuration
-Most setup is done inside the app with `/setup` or **Settings**. Use `.env`
-for deployment-level defaults and secrets you want present before first boot.
-Key settings:
+Help is welcome. The best entry points are fresh-install testing, provider setup bugs, mobile/editor polish, docs, and small focused refactors. See [CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](ROADMAP.md).
 
+<<<<<<< HEAD
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_HOST` | `localhost` | Your LLM server (e.g. `llm-host.local:8000`) |
@@ -419,6 +449,44 @@ docs/      landing page (index.html) + preview clips
 ## Data
 All user data lives in `data/` (gitignored): `app.db` (sessions, messages, documents),
 `memory.json`, `presets.json`, `uploads/`, `personal_docs/`, `chroma/`, `settings.json`.
+=======
+## Security
+
+Odysseus is a self-hosted workspace with powerful local tools. Keep auth enabled, keep private data out of Git, and do not expose raw model/service ports publicly.
+
+- Keep `AUTH_ENABLED=true` for any network-accessible deployment.
+- Keep `LOCALHOST_BYPASS=false` outside local development.
+
+Deployment details are in the [setup guide](website/setup.md#security-notes).
+
+## Community & Growth
+
+<p align="center">
+  <a href="https://trendshift.io/repositories/43167">
+      <a href="https://trendshift.io/repositories/43167?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-43167" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/43167/monthly" alt="odysseus-dev%2Fodysseus | Trendshift" width="230"/></a>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://star-history.dera.page/#odysseus-dev/odysseus&type=date&legend=top-left">
+    <picture>
+      <source
+        media="(prefers-color-scheme: dark)"
+        srcset="https://star-history.dera.page/svg?repos=odysseus-dev/odysseus&type=date&theme=dark&legend=top-left"
+      />
+      <source
+        media="(prefers-color-scheme: light)"
+        srcset="https://star-history.dera.page/svg?repos=odysseus-dev/odysseus&type=date&legend=top-left"
+      />
+      <img
+        src="https://star-history.dera.page/svg?repos=odysseus-dev/odysseus&type=date&legend=top-left"
+        alt="Odysseus GitHub star history"
+        width="100%"
+      />
+    </picture>
+  </a>
+</p>
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 ## Star History
 
@@ -431,19 +499,5 @@ All user data lives in `data/` (gitignored): `app.db` (sessions, messages, docum
 </a>
 
 ## License
-MIT -- see [LICENSE](LICENSE) and [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
 
-```
-                                  |
-                                 |||
-                                |||||
-                  |    |    |   |||||||
-                 )_)  )_)  )_)   ~|~
-                )___))___))___)\  |
-               )____)____)_____)\\|
-             _____|____|____|_____\\\__
-             \                       /
-       ~^~^~~^~^~~^~^~~^~^~~^~^~~^~^~~^~^~~^~^~
-               ~^~  all aboard!  ~^~
-       ~^~^~~^~^~~^~^~~^~^~~^~^~~^~^~~^~^~~^~^~
-```
+AGPL-3.0-or-later -- see [LICENSE](LICENSE) and [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).

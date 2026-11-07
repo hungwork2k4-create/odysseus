@@ -8,9 +8,21 @@ like Apple Silicon (GGUF-only recommendations) while datacenter CDNA and
 unknown-family AMD are left untouched, and that CUDA is unchanged.
 """
 
+<<<<<<< HEAD
 from services.hwfit import hardware
 from services.hwfit.fit import rank_models
 from services.hwfit.models import get_models
+=======
+import pytest
+
+from services.hwfit import hardware
+from services.hwfit.fit import rank_models
+from services.hwfit.models import get_models
+from tests.hwfit_publication_fixtures import publication_catalog  # noqa: F401
+
+# Rank authored inputs rather than publication catalog snapshots.
+pytestmark = pytest.mark.usefixtures("publication_catalog")
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def _rocm_system(family="rdna", ram_gb=32.0, vram_gb=16.0):
@@ -49,20 +61,32 @@ def test_only_gguf_models_recommended_on_consumer_rdna():
 def test_safetensors_models_still_recommended_on_cdna():
     """Datacenter Instinct (CDNA) runs vLLM/SGLang on ROCm fine, so non-GGUF
     repos must NOT be filtered there — the GGUF-only rule is consumer-RDNA only."""
+<<<<<<< HEAD
     names = {r["name"] for r in rank_models(_rocm_system(family="cdna"), limit=900)}
+=======
+    names = {r["name"] for r in rank_models(_rocm_system(family="cdna"), search="microsoft/Phi-mini-MoE-instruct", limit=10)}
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     assert "microsoft/Phi-mini-MoE-instruct" in names
 
 
 def test_unknown_amd_family_not_filtered():
     """When rocminfo is unavailable (family 'unknown'), don't hide non-GGUF
     models — a possibly-capable Instinct box shouldn't lose models on misdetect."""
+<<<<<<< HEAD
     names = {r["name"] for r in rank_models(_rocm_system(family="unknown"), limit=900)}
+=======
+    names = {r["name"] for r in rank_models(_rocm_system(family="unknown"), search="microsoft/Phi-mini-MoE-instruct", limit=10)}
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     assert "microsoft/Phi-mini-MoE-instruct" in names
 
 
 def test_safetensors_models_still_recommended_on_cuda():
     """Regression guard: the GGUF-only rule must not leak onto CUDA."""
+<<<<<<< HEAD
     names = {r["name"] for r in rank_models(_cuda_system(), limit=900)}
+=======
+    names = {r["name"] for r in rank_models(_cuda_system(), search="microsoft/Phi-mini-MoE-instruct", limit=10)}
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     assert "microsoft/Phi-mini-MoE-instruct" in names
 
 
@@ -170,6 +194,11 @@ def test_sort_by_newest_orders_by_release_date():
            "gpu_family": "rdna", "gpu_count": 1, "available_ram_gb": 22.0, "total_ram_gb": 31.0}
     res = rank_models(sys, sort="newest", limit=50)
     dated = [r.get("release_date") for r in res if r.get("release_date")]
+<<<<<<< HEAD
+=======
+    assert len(set(dated)) > 1, "authored inputs must exercise date ordering"
+    assert any(not r.get("release_date") for r in res), "authored inputs must include an undated row"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     # dates present must be in descending order
     assert dated == sorted(dated, reverse=True), "release dates not descending"
     # any undated entries must come after all dated ones

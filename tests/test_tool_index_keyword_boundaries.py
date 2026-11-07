@@ -40,8 +40,17 @@ def test_substring_inside_word_does_not_force_document_tools():
 
 def test_substring_inside_word_does_not_force_serve_tools():
     ti = _index()
+<<<<<<< HEAD
     # "observe"/"reserve" contain "serve".
     tools = ti.get_tools_for_query("please observe the reserve levels")
+=======
+    # "observe"/"reserve" contain "serve". serve_model/serve_preset are also in
+    # ALWAYS_AVAILABLE, so pass a non-serve base to isolate the keyword loop (an
+    # empty set falls back to ALWAYS_AVAILABLE). The "serve" hint must NOT fire.
+    tools = ti.get_tools_for_query(
+        "please observe the reserve levels", always_include={"__base__"}
+    )
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     assert "serve_model" not in tools
     assert "serve_preset" not in tools
 
@@ -51,3 +60,22 @@ def test_genuine_keywords_still_force_include():
     assert "reply_to_email" in ti.get_tools_for_query("reply to this email")
     assert "edit_document" in ti.get_tools_for_query("edit the document")
     assert "serve_model" in ti.get_tools_for_query("serve the model")
+<<<<<<< HEAD
+=======
+
+
+def test_find_info_online_forces_web_search_tools():
+    ti = _index()
+    tools = ti.get_tools_for_query("find info online about crow box designs")
+    assert "web_search" in tools
+    assert "web_fetch" in tools
+
+
+def test_hardware_aware_model_recommendation_includes_app_api():
+    ti = _index()
+    for query in (
+        "find the best model to run on my hardware",
+        "recommend a compatible model for this GPU",
+    ):
+        assert "app_api" in ti.get_tools_for_query(query), query
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

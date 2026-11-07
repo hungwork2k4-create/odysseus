@@ -95,11 +95,24 @@ def test_login_offloads_bcrypt_bearing_calls(monkeypatch):
     monkeypatch.setattr("routes.auth_routes.asyncio.to_thread", fake_to_thread)
     auth.verify_password.return_value = True
     auth.totp_enabled.return_value = False
+<<<<<<< HEAD
     auth.create_session.return_value = "tok-123"
 
     login = _login_endpoint(auth)
 
     request = SimpleNamespace(client=SimpleNamespace(host="203.0.113.7"), cookies={})
+=======
+    auth.create_session_trusted.return_value = "tok-123"
+
+    login = _login_endpoint(auth)
+
+    request = SimpleNamespace(
+        client=SimpleNamespace(host="203.0.113.7"),
+        cookies={},
+        url=SimpleNamespace(scheme="http"),
+        headers={},
+    )
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     response = MagicMock()
     body = LoginRequest(username="alice", password="hunter2", remember=True)
 
@@ -107,7 +120,14 @@ def test_login_offloads_bcrypt_bearing_calls(monkeypatch):
 
     assert result["ok"] is True
     auth.verify_password.assert_called_once()
+<<<<<<< HEAD
     auth.create_session.assert_called_once()
     # The whole point: the expensive bcrypt-bearing calls go through
     # asyncio.to_thread rather than running inline in the request coroutine.
     assert calls == [auth.verify_password, auth.create_session]
+=======
+    auth.create_session_trusted.assert_called_once()
+    # The whole point: the expensive bcrypt-bearing calls go through
+    # asyncio.to_thread rather than running inline in the request coroutine.
+    assert calls == [auth.verify_password, auth.create_session_trusted]
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

@@ -1,13 +1,14 @@
-"""Query enhancement, entity extraction, and cache duration helpers."""
+"""Compatibility wrapper for the canonical services.search.query module.
 
-import re
-import logging
-from datetime import timedelta
-from typing import Dict, List, Optional, Tuple
+``src.search.query`` stays importable for older agent/deep-research code, but the
+implementation now lives in ``services.search.query`` so the two cannot drift.
+"""
 
-logger = logging.getLogger(__name__)
+import sys
 
+from services.search import query as _query
 
+<<<<<<< HEAD
 # ----------------------------------------------------------------------
 # Query processing helpers
 # ----------------------------------------------------------------------
@@ -139,3 +140,6 @@ def _cache_duration_for_query(query: str) -> timedelta:
     if _is_news_query(query):
         return timedelta(minutes=30)
     return timedelta(hours=24)
+=======
+sys.modules[__name__] = _query
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

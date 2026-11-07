@@ -40,7 +40,12 @@ def test_secret_in_list_of_dicts_blanked():
 
 def test_non_secret_keys_preserved():
     s = {"keybinds": {"send": "Enter"}, "theme": "dark", "image_model": "x",
+<<<<<<< HEAD
          "default_endpoint_id": "ep1", "search_result_count": 5, "tts_enabled": True}
+=======
+         "default_endpoint_id": "ep1", "search_result_count": 5, "tts_enabled": True,
+         "tokenId": "public-id", "keyId": "public-key-id"}
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     assert scrub_settings(s) == s  # untouched
 
 
@@ -49,6 +54,19 @@ def test_google_pse_cx_is_public():
     assert scrub_settings({"google_pse_cx": "cx123"})["google_pse_cx"] == "cx123"
 
 
+<<<<<<< HEAD
+=======
+def test_webhook_integration_handle_blanked():
+    out = scrub_settings({
+        "reminder_webhook_integration_id": "global-webhook",
+        "reminder_webhook_payload_template": '{"content":"{{message}}"}',
+    })
+    assert is_secret_key("reminder_webhook_integration_id") is True
+    assert out["reminder_webhook_integration_id"] == ""
+    assert out["reminder_webhook_payload_template"] == '{"content":"{{message}}"}'
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 def test_empty_and_nonstring_secret_values_untouched():
     out = scrub_settings({"api_key": "", "feature_key": 7, "x_token": None})
     assert out["api_key"] == ""     # already empty
@@ -61,6 +79,26 @@ def test_exact_name_matches():
     assert all(v == "" for v in out.values()), out
 
 
+<<<<<<< HEAD
+=======
+def test_camel_case_secret_keys_blanked():
+    out = scrub_settings({
+        "apiKey": "api-secret",
+        "accessToken": "access-secret",
+        "refreshToken": "refresh-secret",
+        "clientSecret": "client-secret",
+        "hfToken": "hf-secret",
+        "nested": {"privateKey": "private-secret"},
+    })
+    assert out["apiKey"] == ""
+    assert out["accessToken"] == ""
+    assert out["refreshToken"] == ""
+    assert out["clientSecret"] == ""
+    assert out["hfToken"] == ""
+    assert out["nested"]["privateKey"] == ""
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 def test_non_object_settings_return_empty_mapping():
     assert scrub_settings(["not", "settings"]) == {}
     assert scrub_settings("not settings") == {}

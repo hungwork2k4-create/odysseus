@@ -15,6 +15,10 @@ import sys
 import types
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+<<<<<<< HEAD
+=======
+import pytest
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 # The helper resolves `from src.database import ModelEndpoint` at call time.
 # Stub the module so we can hand it a fake declarative class whose column
@@ -24,7 +28,11 @@ _sd = types.ModuleType("src.database")
 _sd.ModelEndpoint = MagicMock()
 sys.modules.setdefault("src.database", _sd)
 
+<<<<<<< HEAD
 from routes.research_routes import _owned_enabled_endpoint  # noqa: E402
+=======
+from routes.research_routes import _owned_enabled_endpoint, _resolve_endpoint_runtime  # noqa: E402
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 class _Predicate:
@@ -73,12 +81,24 @@ class _DB:
         return _Query(self._rows)
 
 
+<<<<<<< HEAD
+=======
+@pytest.fixture(autouse=True)
+def _isolate_model_endpoint(monkeypatch):
+    import src.database
+    monkeypatch.setattr(src.database, "ModelEndpoint", _ModelEndpoint)
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 def _ep(eid, owner, *, is_enabled=True):
     return SimpleNamespace(id=eid, owner=owner, is_enabled=is_enabled, api_key="sk-secret")
 
 
 def _resolve(rows, owner, endpoint_id=None):
+<<<<<<< HEAD
     sys.modules["src.database"].ModelEndpoint = _ModelEndpoint
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     return _owned_enabled_endpoint(_DB(rows), owner, endpoint_id)
 
 
@@ -129,3 +149,32 @@ def test_null_owner_is_legacy_single_user_noop():
     rows = [_ep("ep-x", "bob"), _ep("ep-y", "alice")]
     ep = _resolve(rows, None, "ep-x")
     assert ep is not None and ep.id == "ep-x"
+<<<<<<< HEAD
+=======
+
+
+def test_runtime_resolution_uses_provider_auth_for_chatgpt_subscription(monkeypatch):
+    ep = SimpleNamespace(
+        id="ep-chatgpt",
+        owner="alice",
+        base_url="https://chatgpt.com/backend-api/codex",
+        api_key=None,
+        provider_auth_id="auth-1",
+        cached_models='["gpt-5.5"]',
+        hidden_models=None,
+    )
+
+    monkeypatch.setattr(
+        "src.chatgpt_subscription.resolve_runtime_credentials",
+        lambda auth_id, owner=None: {
+            "base_url": "https://chatgpt.com/backend-api/codex",
+            "api_key": "fresh-access-token",
+        },
+    )
+
+    url, model, headers = _resolve_endpoint_runtime(ep, owner="alice", model="")
+
+    assert url == "https://chatgpt.com/backend-api/codex/responses"
+    assert model == "gpt-5.5"
+    assert headers["Authorization"] == "Bearer fresh-access-token"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

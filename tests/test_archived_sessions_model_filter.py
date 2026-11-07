@@ -6,7 +6,13 @@ silently DROPPED "gpt-4o" (contains but does not end with the value), and
 over-matched models that merely share the suffix. The sibling name filter
 already uses a wildcard-escaped contains match.
 """
+<<<<<<< HEAD
 import tempfile
+=======
+import sys
+import tempfile
+import types
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 import uuid
 
 import pytest
@@ -34,11 +40,38 @@ def _route(router, path, method="GET"):
     raise AssertionError(f"route not found: {path}")
 
 
+<<<<<<< HEAD
+=======
+def _stub_multipart_if_missing(monkeypatch):
+    """Satisfy FastAPI's optional python-multipart probe.
+
+    setup_session_routes() registers form-based routes we don't exercise here.
+    When FastAPI analyzes their Form() params at registration time it calls
+    ensure_multipart_is_installed(), which raises RuntimeError if neither
+    python-multipart nor multipart is importable. This archived-session model
+    filter test must not depend on that optional package, so inject a minimal
+    stub (only when it's genuinely absent) to let route setup proceed.
+    """
+    try:
+        import python_multipart  # noqa: F401
+        return
+    except ImportError:
+        pass
+    stub = types.ModuleType("python_multipart")
+    stub.__version__ = "0.0.20"  # FastAPI asserts __version__ > "0.0.12"
+    monkeypatch.setitem(sys.modules, "python_multipart", stub)
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 @pytest.fixture
 def archived_endpoint(monkeypatch):
     import routes.session_routes as sr
     from unittest.mock import MagicMock
 
+<<<<<<< HEAD
+=======
+    _stub_multipart_if_missing(monkeypatch)
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     monkeypatch.setattr(sr, "SessionLocal", _TS)
     monkeypatch.setattr(sr, "effective_user", lambda request: "alice")
     router = sr.setup_session_routes(MagicMock(), {})
@@ -51,7 +84,11 @@ def _seed(owner, *models):
         db.query(DbSession).delete()
         for m in models:
             db.add(DbSession(id=str(uuid.uuid4()), owner=owner, name=f"chat {m}",
+<<<<<<< HEAD
                              model=m, archived=True))
+=======
+                             endpoint_url="http://localhost", model=m, archived=True))
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         db.commit()
     finally:
         db.close()

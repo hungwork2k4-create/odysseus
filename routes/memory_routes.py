@@ -1,26 +1,21 @@
-# routes/memory_routes.py
-from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
-from typing import Dict, Any, Optional, List
-import json
-import os
-import re
-import tempfile
-import time
-from datetime import datetime
-import logging
+"""Backward-compat shim — canonical location is routes/memory/memory_routes.py.
 
-# Leading list-marker like "1.", "12)", or "3:" plus surrounding whitespace.
-# Strips one prefix per call so import-from-LLM-output doesn't leave the
-# numbering inside the saved memory text. Bullet markers (-, *, •) are
-# also peeled here for the same reason.
-_LIST_PREFIX_RE = re.compile(r"^\s*(?:\d{1,3}[.):]\s+|[-*•]\s+)")
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.memory_routes``, ``from routes.memory_routes import X``,
+``importlib.import_module("routes.memory_routes")``, and
+``monkeypatch.setattr(routes.memory_routes, "ATTR", ...)`` (used by
+test_memory_routes_session_owner.py and test_memory_owner_isolation.py via
+``import ... as mr`` + ``setattr(mr, ...)``) all operate on the *same* object
+the application actually uses. Keeps existing import paths working after
+slice 2c (#4082/#4071). Source-introspection tests read the canonical file
+by path.
+"""
 
+import sys as _sys
 
-def _strip_list_prefix(text: str) -> str:
-    if not text:
-        return text
-    return _LIST_PREFIX_RE.sub("", text, count=1).strip()
+from routes.memory import memory_routes as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 from services.memory import MemoryManager
 from core.session_manager import SessionManager
 from src.request_models import MemoryAddRequest
@@ -546,3 +541,6 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
         return {"ok": True, "message": "Memory deleted successfully"}
 
     return router
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

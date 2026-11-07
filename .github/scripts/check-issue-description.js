@@ -41,6 +41,17 @@ module.exports = async ({ github, context, core }) => {
       break;
 
     case 'bug': {
+<<<<<<< HEAD
+=======
+      const revisionText = section('Odysseus Revision');
+      if (!/^[0-9a-f]{12} \(\d{4}-\d{2}-\d{2}\)$/i.test(revisionText)) {
+        failures.push(
+          '**Odysseus Revision** — paste the 12-character commit SHA and date, ' +
+          'for example `1fef4929cf1d (2026-08-11)`',
+        );
+      }
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
       if (!section('Install Method')) {
         failures.push('**Install Method** — select how you installed Odysseus');
       }
@@ -91,6 +102,40 @@ module.exports = async ({ github, context, core }) => {
     // 'untyped' → only the common body-length check applies.
   }
 
+<<<<<<< HEAD
+=======
+  // ── Unfilled dropdowns ────────────────────────────────────────────────────
+  // #2068 added a "-- Please Select --" default to every template dropdown, so
+  // a contributor who never opens the dropdown submits with that literal string
+  // as the section value. The per-section checks above only verify presence, so
+  // a placeholder value passes. Scan every section and flag the ones still
+  // showing the placeholder, as a single comma-separated line item.
+  const PLACEHOLDER = '-- Please Select --';
+  const headingRe = /^#+\s+(.+?)\s*$/gm;
+  const headings = [];
+  let headingMatch;
+  while ((headingMatch = headingRe.exec(body)) !== null) {
+    headings.push({
+      name: headingMatch[1].trim(),
+      headStart: headingMatch.index,
+      contentStart: headingMatch.index + headingMatch[0].length,
+    });
+  }
+  const unfilled = [];
+  for (let i = 0; i < headings.length; i++) {
+    const end = i + 1 < headings.length ? headings[i + 1].headStart : body.length;
+    if (body.slice(headings[i].contentStart, end).includes(PLACEHOLDER)) {
+      unfilled.push(headings[i].name);
+    }
+  }
+  if (unfilled.length > 0) {
+    failures.push(
+      `**Unfilled dropdowns** — please choose a value; these sections still show ` +
+      `the \`${PLACEHOLDER}\` placeholder: ${unfilled.join(', ')}.`,
+    );
+  }
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   // ── Labels ────────────────────────────────────────────────────────────────
   // These labels are expected to already exist in the repo — managing the
   // repo's label set is the maintainer's job, not this workflow's. We check a
@@ -122,6 +167,19 @@ module.exports = async ({ github, context, core }) => {
     }
   }
 
+<<<<<<< HEAD
+=======
+  const LABEL_BAD  = 'needs more info';
+  const LABEL_GOOD = 'ready for review';
+
+  // Closed issues are no longer awaiting review.
+  // This also prevents later edits to closed issues from restoring the label.
+  if (issue.state === 'closed') {
+    await dropLabel(LABEL_GOOD);
+    return;
+  }
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   // ── Find existing bot comment to update in-place ──────────────────────────
   const MARKER = '<!-- issue-description-check -->';
   const { data: comments } = await github.rest.issues.listComments({
@@ -129,9 +187,12 @@ module.exports = async ({ github, context, core }) => {
   });
   const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes(MARKER));
 
+<<<<<<< HEAD
   const LABEL_BAD  = 'needs more info';
   const LABEL_GOOD = 'ready for review';
 
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   if (failures.length === 0) {
     if (existing) {
       await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });

@@ -1,7 +1,14 @@
 from pathlib import Path
+<<<<<<< HEAD
 
 
 CSS = (Path(__file__).parents[1] / "static" / "style.css").read_text(encoding="utf-8")
+=======
+from tests.helpers.stylesheets import app_css
+
+
+CSS = app_css()
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def _rule(selector: str) -> str:

@@ -25,7 +25,11 @@ from sqlalchemy.orm import sessionmaker
 from core.database import Base, ChatMessage as DbChatMessage, Session as DbSession
 
 
+<<<<<<< HEAD
 HISTORY_ROUTES = Path(__file__).resolve().parent.parent / "routes" / "history_routes.py"
+=======
+HISTORY_ROUTES = Path(__file__).resolve().parent.parent / "routes" / "history" / "history_routes.py"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def test_chatmessage_model_has_timestamp_not_created_at():

@@ -10,6 +10,19 @@ dist/
 build/
 .env
 .env.bak.*
+<<<<<<< HEAD
+=======
+# Secrets: keep plaintext and every transient secrets.env variant out of
+# the build context. If an encrypted secrets.env is used, it is mounted
+# at runtime — never baked into the image. Mirrored in .gitignore.
+secrets.env
+secrets.env.*
+secrets.env~
+.secrets.env.swp
+.secrets.env.swo
+**/#secrets.env#
+!secrets.env.example
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 /data/
 /logs/
 .git/
@@ -20,6 +33,11 @@ build/
 .idea/
 dev-docs/
 docs/
+<<<<<<< HEAD
+=======
+website/
+assets/branding/
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 *.md
 *.db
 *.sqlite
@@ -40,3 +58,7 @@ timetree*.png
 *_signin_page.png
 *_calendar_view.png
 .gitignore
+
+# Include distribution notices despite the general documentation exclusion.
+!ACKNOWLEDGMENTS.md
+!services/hwfit/data/README.md

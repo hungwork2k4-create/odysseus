@@ -1,23 +1,21 @@
-# routes/mcp_routes.py
-"""MCP (Model Context Protocol) server management routes."""
-import json
-import os
-import uuid
-import urllib.parse
-import html
-from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
-import logging
-import httpx
+"""Backward-compat shim — canonical location is routes/mcp/mcp_routes.py.
 
-from core.database import McpServer, SessionLocal
-from core.middleware import require_admin
-from src.mcp_manager import McpManager
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.mcp_routes``, ``from routes.mcp_routes import X``,
+``importlib.import_module("routes.mcp_routes")``, the
+``sys.modules.pop("routes.mcp_routes")`` + re-import pattern in
+test_security_regressions.py, and the ``monkeypatch.setattr(mcp_routes,
+"MCP_OAUTH_DIR", ...)`` pattern all operate on the *same* object. This also
+makes ``mcp_routes.__file__`` resolve to the canonical file (which the
+source-introspection at line 839 reads). Keeps existing import paths working
+after slice 2o (#4082/#4071).
+"""
 
-logger = logging.getLogger(__name__)
+import sys as _sys
 
-router = APIRouter(prefix="/api/mcp", tags=["mcp"])
+from routes.mcp import mcp_routes as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 
 def _load_disabled_map():
     """Load per-server disabled tool sets from DB."""
@@ -577,3 +575,6 @@ def _oauth_result_page(title: str, message: str, success: bool = False) -> str:
   <h2>{safe_title}</h2>
   <p>{safe_message}</p>
 </div></body></html>"""
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

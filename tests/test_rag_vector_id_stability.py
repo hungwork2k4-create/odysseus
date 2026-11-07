@@ -1,10 +1,18 @@
 import os
 import subprocess
+<<<<<<< HEAD
 import pytest
 
 def test_rag_id_stability_across_processes():
     # Run helper in subprocesses with different PYTHONHASHSEED values to ensure cross-process stability
     cmd = ["./venv/bin/python", "-c", "from src.rag_vector import _generate_doc_id; print(_generate_doc_id('test_text_hash'))"]
+=======
+import sys
+
+def test_rag_id_stability_across_processes():
+    # Run helper in subprocesses with different PYTHONHASHSEED values to ensure cross-process stability
+    cmd = [sys.executable, "-c", "from src.rag_vector import _generate_doc_id; print(_generate_doc_id('test_text_hash'))"]
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     
     env0 = os.environ.copy()
     env0["PYTHONHASHSEED"] = "0"
@@ -23,6 +31,10 @@ def test_rag_id_stability_across_processes():
     assert id0 == id_rand
     
     # Assert different inputs produce different IDs
+<<<<<<< HEAD
     cmd_diff = ["./venv/bin/python", "-c", "from src.rag_vector import _generate_doc_id; print(_generate_doc_id('different_text_hash'))"]
+=======
+    cmd_diff = [sys.executable, "-c", "from src.rag_vector import _generate_doc_id; print(_generate_doc_id('different_text_hash'))"]
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     id_diff = subprocess.check_output(cmd_diff, env=env0).decode().strip()
     assert id0 != id_diff

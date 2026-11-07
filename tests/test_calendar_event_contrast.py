@@ -4,11 +4,19 @@ import subprocess
 from pathlib import Path
 
 import pytest
+<<<<<<< HEAD
+=======
+from tests.helpers.stylesheets import app_css
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CALENDAR_JS = ROOT / "static" / "js" / "calendar.js"
+<<<<<<< HEAD
 STYLE_CSS = ROOT / "static" / "style.css"
+=======
+STYLE_CSS_TEXT = app_css()
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 UTILS_JS = ROOT / "static" / "js" / "calendar" / "utils.js"
 
 pytestmark = pytest.mark.skipif(not shutil.which("node"), reason="node binary not on PATH")
@@ -65,7 +73,11 @@ def test_calendar_readable_text_color_keeps_light_text_for_dark_colors():
 
 def test_calendar_event_surfaces_use_computed_foreground_variable():
     calendar_js = CALENDAR_JS.read_text(encoding="utf-8")
+<<<<<<< HEAD
     style_css = STYLE_CSS.read_text(encoding="utf-8")
+=======
+    style_css = STYLE_CSS_TEXT
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     utils_js = UTILS_JS.read_text(encoding="utf-8")
 
     assert "_calReadableTextColor" in utils_js

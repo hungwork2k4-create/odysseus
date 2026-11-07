@@ -1,17 +1,15 @@
-"""
-email_routes.py
+"""Backward-compat shim — canonical location is routes/email/email_routes.py.
 
-FastAPI route handlers for the email feature. All non-route logic
-(IMAP connection helpers, message parsing, account config, the
-auto-summarize + scheduled-email pollers, Pydantic models) lives in:
-
-    routes/email_helpers.py   — synchronous helpers + models + constants
-    routes/email_pollers.py   — background loops, started by `_start_poller`
-
-Importing from the helpers module brings in everything those route
-handlers need. The split is mechanical — no behavior change.
+This module is replaced in ``sys.modules`` by the canonical module object so
+that ``import routes.email_routes``, ``from routes.email_routes import X``,
+``importlib.import_module("routes.email_routes")`` and the
+``import ... as email_routes`` + ``monkeypatch.setattr(email_routes, ...)``
+pattern used across the email tests all operate on the *same* object the
+application actually uses. Source-introspection tests read the canonical file
+by path.
 """
 
+<<<<<<< HEAD
 import asyncio
 import sqlite3 as _sql3
 import email as email_mod
@@ -26,10 +24,13 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
+=======
+import sys as _sys
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from routes.email import email_routes as _canonical  # noqa: F401
 
+<<<<<<< HEAD
 from fastapi import APIRouter, Query, UploadFile, File, BackgroundTasks, HTTPException, Depends, Request
 from fastapi.responses import FileResponse
 
@@ -3210,3 +3211,6 @@ def setup_email_routes():
             db.close()
 
     return router
+=======
+_sys.modules[__name__] = _canonical
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

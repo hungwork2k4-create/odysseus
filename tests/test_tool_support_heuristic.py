@@ -1,6 +1,7 @@
 """Regression tests for the tool-support heuristic in stream_agent_loop.
 
 Verifies two critical cases:
+<<<<<<< HEAD
   1. deepseek-r1 on a local Ollama endpoint must NOT enable native tool schemas
      (Ollama returns HTTP 400 for these models when tools are sent).
   2. api.deepseek.com must still be treated as tool-capable via the host
@@ -8,6 +9,23 @@ Verifies two critical cases:
 """
 import pytest
 from src.agent_loop import _API_HOSTS
+=======
+  1. local Ollama endpoints must NOT enable native tool schemas by default
+     (some models terminate after one token with schemas).
+  2. api.deepseek.com must still be treated as tool-capable via the host
+     allow-list (_API_HOSTS), so cloud deepseek users keep working.
+"""
+from types import SimpleNamespace
+
+import pytest
+from src.agent_loop import (
+    _API_HOSTS,
+    _agent_route_tool_mode,
+    _endpoint_lookup_keys,
+    _is_ollama_openai_compat_url,
+)
+from src.llm_core import _is_ollama_native_url
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def _compute_is_api_model(model: str, endpoint_url: str, endpoint_supports=None) -> bool:
@@ -17,24 +35,45 @@ def _compute_is_api_model(model: str, endpoint_url: str, endpoint_supports=None)
     model_supports_tools = any(kw in model_lc for kw in (
         "gpt-4", "gpt-5", "gpt-o", "claude", "gemini", "gemma",
         "qwen3", "qwen2.5", "mixtral", "mistral", "llama-3.1", "llama-3.2",
+<<<<<<< HEAD
         "llama-3.3", "llama-4",
+=======
+        "llama-3.3", "llama-4", "llama3.1", "llama3.2", "llama3.3", "llama4",
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         "minimax", "kimi", "yi-", "phi-3", "phi-4", "command-r",
         "glm-4", "internlm", "hermes",
         "deepseek-v", "deepseek-chat",
     ))
     model_no_tools = any(kw in model_lc for kw in (
         "deepseek-r1",
+<<<<<<< HEAD
+=======
+        "gpt-oss",
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     ))
 
     if endpoint_supports is True:
         return True
+<<<<<<< HEAD
     if endpoint_supports is False or model_no_tools:
+=======
+    if (
+        endpoint_supports is False
+        or model_no_tools
+        or _is_ollama_native_url(endpoint_url)
+        or _is_ollama_openai_compat_url(endpoint_url)
+    ):
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
         return False
     return any(h in endpoint_url for h in _API_HOSTS) or model_supports_tools
 
 
 class TestDeepSeekToolSupport:
+<<<<<<< HEAD
     # --- local Ollama cases (must NOT get tool schemas) ---
+=======
+    # --- local Ollama cases (must NOT get native tool schemas by default) ---
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
     def test_deepseek_r1_7b_local_ollama_no_tools(self):
         result = _compute_is_api_model(
@@ -56,6 +95,29 @@ class TestDeepSeekToolSupport:
             "deepseek-r1:7b", "http://host.docker.internal:11434/v1"
         ) is False
 
+<<<<<<< HEAD
+=======
+    def test_qwen_local_ollama_defaults_to_fenced_tools(self):
+        assert _compute_is_api_model(
+            "qwen3.5:4b", "http://localhost:11434/v1"
+        ) is False
+
+    def test_gemma_local_ollama_defaults_to_fenced_tools(self):
+        assert _compute_is_api_model(
+            "gemma4:e4b", "http://host.docker.internal:11434/v1"
+        ) is False
+
+    def test_gpt_oss_local_openai_compat_defaults_to_fenced_tools(self):
+        assert _compute_is_api_model(
+            "gpt-oss-20b", "http://localhost:8000/v1"
+        ) is False
+
+    def test_qwen_native_ollama_defaults_to_fenced_tools(self):
+        assert _compute_is_api_model(
+            "qwen3.5:4b", "http://localhost:11434/api/chat"
+        ) is False
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     # --- cloud API cases (must still get tool schemas) ---
 
     def test_deepseek_cloud_api_gets_tools(self):
@@ -82,6 +144,29 @@ class TestDeepSeekToolSupport:
         )
         assert result is True
 
+<<<<<<< HEAD
+=======
+    def test_endpoint_supports_true_overrides_ollama_default(self):
+        """A user can still explicitly opt a known-good Ollama endpoint into
+        native schemas."""
+        result = _compute_is_api_model(
+            "qwen3.5:4b", "http://localhost:11434/v1", endpoint_supports=True
+        )
+        assert result is True
+
+    def test_endpoint_supports_true_overrides_native_ollama_default(self):
+        result = _compute_is_api_model(
+            "qwen3.5:4b", "http://localhost:11434/api/chat", endpoint_supports=True
+        )
+        assert result is True
+
+    def test_endpoint_supports_true_overrides_gpt_oss_default(self):
+        result = _compute_is_api_model(
+            "gpt-oss-20b", "http://localhost:8000/v1", endpoint_supports=True
+        )
+        assert result is True
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     def test_endpoint_supports_false_overrides_cloud(self):
         """supports_tools=False on an endpoint gates even cloud APIs."""
         result = _compute_is_api_model(
@@ -91,11 +176,25 @@ class TestDeepSeekToolSupport:
 
     # --- other local models unaffected ---
 
+<<<<<<< HEAD
     def test_qwen_local_still_gets_tools(self):
         assert _compute_is_api_model("qwen2.5:14b", "http://localhost:11434/v1") is True
 
     def test_llama_local_gets_tools_via_host(self):
         assert _compute_is_api_model("llama3.2:3b", "http://localhost:11434/v1") is True
+=======
+    def test_qwen_local_non_ollama_still_gets_tools(self):
+        assert _compute_is_api_model("qwen2.5:14b", "http://localhost:8000/v1") is True
+
+    def test_qwen35_alias_local_openai_compat_gets_tools(self):
+        """Dash-style Qwen 3.5 aliases must receive native tool schemas."""
+        assert _compute_is_api_model(
+            "qwen35-9b-ajax-tp2-67", "http://localhost:8000/v1"
+        ) is True
+
+    def test_llama_local_non_ollama_gets_tools_via_host(self):
+        assert _compute_is_api_model("llama3.2:3b", "http://localhost:8000/v1") is True
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 class TestApiHostsContainsDeepSeek:
@@ -104,3 +203,73 @@ class TestApiHostsContainsDeepSeek:
 
     def test_deepseek_com_in_api_hosts(self):
         assert "deepseek.com" in _API_HOSTS
+<<<<<<< HEAD
+=======
+
+
+class TestEndpointLookupKeys:
+    def test_chat_completions_url_matches_endpoint_base(self):
+        keys = _endpoint_lookup_keys("http://localhost:11434/v1/chat/completions")
+
+        assert "http://localhost:11434/v1" in keys
+        assert "http://localhost:11434/v1/" in keys
+
+    def test_native_ollama_chat_url_matches_api_base(self):
+        keys = _endpoint_lookup_keys("http://host.docker.internal:11434/api/chat")
+
+        assert "http://host.docker.internal:11434/api" in keys
+
+
+def test_route_tool_mode_matches_credential_distinct_endpoint(monkeypatch):
+    from core import database
+    from src import endpoint_resolver
+
+    rows = [
+        SimpleNamespace(
+            id="one",
+            base_url="https://same.example/v1",
+            api_key="key-one",
+            provider_auth_id=None,
+            supports_tools=True,
+        ),
+        SimpleNamespace(
+            id="two",
+            base_url="https://same.example/v1",
+            api_key="key-two",
+            provider_auth_id=None,
+            supports_tools=False,
+        ),
+    ]
+
+    class Query:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return rows
+
+    class Db:
+        def query(self, *args, **kwargs):
+            return Query()
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(database, "SessionLocal", lambda: Db())
+    monkeypatch.setattr(
+        endpoint_resolver,
+        "resolve_endpoint_runtime",
+        lambda endpoint, owner=None: (endpoint.base_url, endpoint.api_key),
+    )
+
+    assert _agent_route_tool_mode(
+        "https://same.example/v1",
+        "custom-model",
+        headers={"Authorization": "Bearer key-one"},
+    )[0] is True
+    assert _agent_route_tool_mode(
+        "https://same.example/v1",
+        "custom-model",
+        headers={"Authorization": "Bearer key-two"},
+    )[0] is False
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483

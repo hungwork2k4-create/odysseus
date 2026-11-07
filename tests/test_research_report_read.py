@@ -14,13 +14,17 @@ These tests pin both halves:
    web_fetching the HTML report.
 """
 import json
+<<<<<<< HEAD
 from pathlib import Path
+=======
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 import pytest
 
 from src.tool_implementations import do_manage_research
 from src.agent_loop import TOOL_SECTIONS
 
+<<<<<<< HEAD
 _DATA_DIR = Path("data/deep_research")
 
 
@@ -29,6 +33,16 @@ def saved_report():
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     rid = "rp-testreport1363"
     path = _DATA_DIR / f"{rid}.json"
+=======
+
+@pytest.fixture
+def saved_report(tmp_path, monkeypatch):
+    from src.tools import research
+
+    monkeypatch.setattr(research, "DEEP_RESEARCH_DIR", str(tmp_path))
+    rid = "rp-testreport1363"
+    path = tmp_path / f"{rid}.json"
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     path.write_text(json.dumps({
         "query": "trending blender video ideas",
         "result": "## Findings\nShort-form Geometry Nodes tutorials are trending.",

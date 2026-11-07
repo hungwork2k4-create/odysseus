@@ -2,6 +2,14 @@
 import json
 
 import src.search.analytics as analytics
+<<<<<<< HEAD
+=======
+import services.search.analytics as live_analytics
+
+
+def test_src_search_analytics_is_services_shim():
+    assert analytics is live_analytics
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 
 def test_load_merges_defaults_for_partial_file(tmp_path, monkeypatch):

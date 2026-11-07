@@ -13,6 +13,11 @@ import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+<<<<<<< HEAD
+=======
+from src.constants import MEMORY_FILE, SKILLS_FILE
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 def claim_json_entries(entries, owner):
     count = 0
@@ -25,18 +30,27 @@ def claim_json_entries(entries, owner):
     return count
 
 
+<<<<<<< HEAD
+=======
+def owner_arg(argv):
+    if len(argv) < 2 or not argv[1].strip():
+        return None
+    return argv[1].strip()
+
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 def main():
-    if len(sys.argv) < 2:
+    owner = owner_arg(sys.argv)
+    if not owner:
         print("Usage: python scripts/claim_ownerless.py <username>")
         sys.exit(1)
 
-    owner = sys.argv[1]
     print(f"Claiming all ownerless data for: {owner}\n")
 
     # 1. Memories (JSON files)
     for label, path in [
-        ("memory.json", "data/memory.json"),
-        ("skills.json", "data/skills.json"),
+        ("memory.json", MEMORY_FILE),
+        ("skills.json", SKILLS_FILE),
     ]:
         if not os.path.exists(path):
             print(f"  {label}: not found, skipping")

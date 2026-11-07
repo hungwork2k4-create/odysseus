@@ -17,7 +17,11 @@ SRC = Path(__file__).resolve().parent.parent / "static/js/fileHandler.js"
 
 def _upload_pending_body() -> str:
     text = SRC.read_text(encoding="utf-8")
+<<<<<<< HEAD
     start = text.index("export async function uploadPending()")
+=======
+    start = text.index("export async function uploadPending(")
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     rest = text[start:]
     m = re.search(r"\n(export |function )", rest[1:])
     return rest[: m.start() + 1] if m else rest

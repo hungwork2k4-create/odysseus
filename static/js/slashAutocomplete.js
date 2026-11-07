@@ -2,10 +2,17 @@
 // Lightweight popup that surfaces the existing /command registry as users
 // type. Reads COMMANDS from slashCommands.js — no command logic lives here.
 
+<<<<<<< HEAD
 import { COMMANDS, LEGACY_ALIASES } from './slashCommands.js';
 
 const POPUP_ID = 'slash-autocomplete';
 const MAX_VISIBLE = 12;
+=======
+import { COMMANDS, LEGACY_ALIASES } from './slashCommands.js?v=20260921chatgptusage1';
+
+const POPUP_ID = 'slash-autocomplete';
+const MAX_VISIBLE = 14;
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 
 // Flatten the registry into a searchable list of leaf entries. Each entry is
 // either a top-level command or a "cmd sub" pair (so subcommands get their
@@ -81,6 +88,26 @@ function _flatten() {
   return out;
 }
 
+<<<<<<< HEAD
+=======
+async function _loadSkillEntries() {
+  try {
+    const res = await fetch('/api/skills/slash-catalog', { credentials: 'same-origin' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data.skills) ? data.skills : []).map(s => ({
+      token: s.token || `/${s.name}`,
+      aliases: [],
+      category: s.category || 'Skills',
+      help: s.help || 'Run skill',
+      usage: s.usage || `${s.token || `/${s.name}`} <request>`,
+    })).filter(e => e.token && e.token.startsWith('/'));
+  } catch {
+    return [];
+  }
+}
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 function _scoreMatch(entry, query) {
   // query already starts with "/". Match against token + aliases. Prefix wins
   // over substring; alias match scores slightly lower than token match.
@@ -98,6 +125,20 @@ function _scoreMatch(entry, query) {
   return 0;
 }
 
+<<<<<<< HEAD
+=======
+function _exactCommandGroupItems(all, query) {
+  const q = query.toLowerCase();
+  if (!/^\/[a-z0-9_-]+$/i.test(q)) return [];
+  const parent = all.find(entry => entry.token.toLowerCase() === q);
+  if (!parent) return [];
+  const prefix = q + ' ';
+  const children = all.filter(entry => entry.token.toLowerCase().startsWith(prefix));
+  if (!children.length) return [];
+  return children.concat(parent);
+}
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
 function _ensurePopup(textarea) {
   let el = document.getElementById(POPUP_ID);
   if (el) return el;
@@ -164,7 +205,11 @@ export function initSlashAutocomplete(textarea) {
   if (!textarea || textarea._slashAcWired) return;
   textarea._slashAcWired = true;
 
+<<<<<<< HEAD
   const all = _flatten();
+=======
+  let all = _flatten();
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   let popup = null;
   let visible = false;
   let items = [];
@@ -191,12 +236,24 @@ export function initSlashAutocomplete(textarea) {
     // the menu hides — we don't autocomplete mid-sentence.
     if (!v.startsWith('/') || v.includes('\n')) { hide(); return; }
     const query = v.trim();
+<<<<<<< HEAD
     items = all
+=======
+    const groupItems = _exactCommandGroupItems(all, query);
+    if (groupItems.length) {
+      items = groupItems.slice(0, MAX_VISIBLE);
+    } else {
+      items = all
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
       .map(e => ({ e, s: _scoreMatch(e, query) }))
       .filter(x => x.s > 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, MAX_VISIBLE)
       .map(x => x.e);
+<<<<<<< HEAD
+=======
+    }
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
     if (!items.length && query.length > 1) { hide(); return; }
     if (!items.length) {
       // Just "/" with no matches — fall back to showing everything up to MAX_VISIBLE
@@ -207,6 +264,22 @@ export function initSlashAutocomplete(textarea) {
     _render(popup, items, selectedIdx, query);
   };
 
+<<<<<<< HEAD
+=======
+  _loadSkillEntries().then(skillEntries => {
+    if (!skillEntries.length) return;
+    const seen = new Set(all.map(e => e.token));
+    const merged = all.slice();
+    for (const entry of skillEntries) {
+      if (seen.has(entry.token)) continue;
+      seen.add(entry.token);
+      merged.push(entry);
+    }
+    all = merged;
+    if (visible) refresh();
+  });
+
+>>>>>>> 9d0d3720f4ca181d87bef94da826d730acc6d483
   const insert = (token) => {
     textarea.value = token + ' ';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
